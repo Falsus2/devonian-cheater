@@ -14,7 +14,7 @@ import com.github.synnerz.devonian.config.ui.talium.ConfigGui
 import com.github.synnerz.devonian.features.*
 import com.github.synnerz.devonian.features.bossbar.BossBarHealth
 import com.github.synnerz.devonian.features.chat.CommandAliases
-import com.github.synnerz.devonian.features.chat.CompactChat
+import com.github.synnerz.devonian.features.misc.chat.CompactChat
 import com.github.synnerz.devonian.features.chat.CopyChat
 import com.github.synnerz.devonian.features.debug.CopyItem
 import com.github.synnerz.devonian.features.debug.WAILA
@@ -67,12 +67,21 @@ object Devonian : ClientModInitializer {
     }
     val GIT_COMMIT_HASH = buildProperties.getProperty("git.commit.hash", "<UNKNOWN HASH>")
     val GIT_COMMIT_TIME = buildProperties.getProperty("git.commit.time")?.let {
-        Instant.parse(it)
+        try {
+            Instant.parse(it)
+        } catch (_: Exception) {
+            null
+        }
     } ?: Instant.EPOCH
     val GIT_COMMIT_MESSAGE = buildProperties.getProperty("git.commit.message", "<UNKNOWN MESSAGE>")
     val BUILD_TIME = buildProperties.getProperty("build.time")?.let {
-        Instant.parse(it)
+        try {
+            Instant.parse(it)
+        } catch (_: Exception) {
+            null
+        }
     } ?: Instant.EPOCH
+    val DEVONIAN_VERSION = buildProperties.getProperty("devonian.version", "<UNKNOWN VERSION>")
     val IS_LOCAL_BUILD = GIT_COMMIT_MESSAGE == "<LOCAL BUILD>"
 
     val keybindCategory by lazy {
@@ -318,6 +327,7 @@ object Devonian : ClientModInitializer {
             MutePartySpam,
             CheckForUpdates,
             Searchbar,
+            PartyFinderCount,
 
             // Debug
             CopyItem,
@@ -330,7 +340,7 @@ object Devonian : ClientModInitializer {
 
     override fun onInitializeClient() {
         println(
-            "Loading Devonian $GIT_COMMIT_HASH (${
+            "Loading Devonian $DEVONIAN_VERSION $GIT_COMMIT_HASH (${
                 GIT_COMMIT_TIME.atOffset(ZoneOffset.ofHours(-5))
                     .withNano(0)
                     .format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)

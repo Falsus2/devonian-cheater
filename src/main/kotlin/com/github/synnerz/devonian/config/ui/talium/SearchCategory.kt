@@ -86,13 +86,17 @@ class SearchCategory(rightPanel: UIBase) {
                 matchesConfig(it, str)
             }
         }
+        val hitCount = mutableListOf<Int>()
         val featOrdering = shownSubConfigs.entries.associate {
-            it.key to max(shownFeats[it.key] ?: 0, it.value.entries.maxOfOrNull { it.value } ?: 0)
+            val count = max(shownFeats[it.key] ?: 0, it.value.entries.maxOfOrNull { it.value } ?: 0)
+            while (count >= hitCount.size) hitCount.add(0)
+            it.key to (count * 1000 + hitCount[count]++)
         }
 
         var idx = 0
         components.sortedBy {
-            -featOrdering[if (it.first is ConfigData.FeatureSwitch) it.first else it.first.parent]!!
+            -1000 * featOrdering[if (it.first is ConfigData.FeatureSwitch) it.first else it.first.parent]!! +
+            (if (it.first is ConfigData.FeatureSwitch) -1 else 500 - (shownSubConfigs[it.first.parent]?.get(it.first) ?: 0))
         }.forEach { (data, comp) ->
             val show = if (data is ConfigData.FeatureSwitch) {
                 featOrdering[data]!! > 0
@@ -348,6 +352,10 @@ class SearchCategory(rightPanel: UIBase) {
     ): UIColorPicker = object : UIColorPicker(80.0, 25.0, 15.0, 50.0, configData.get(), parent) {
         init {
             colorComponents.add(this)
+            floatingChild.onUnfocus { event ->
+                if (!arrowToggle || isMainClicked) return@onUnfocus
+                hideDropdown()
+            }
         }
 
         override fun setValue(hue: Double) {

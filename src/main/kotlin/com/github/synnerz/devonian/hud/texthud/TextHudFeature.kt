@@ -8,6 +8,8 @@ import com.github.synnerz.devonian.hud.texthud.StylizedTextHud.*
 import com.github.synnerz.devonian.utils.BoundingBox
 import com.github.synnerz.devonian.utils.StringUtils.camelCaseToSentence
 import com.github.synnerz.devonian.utils.render.Render2D
+import com.github.synnerz.devonian.utils.render.Render2D.height
+import com.github.synnerz.devonian.utils.render.Render2D.width
 import net.minecraft.client.gui.GuiGraphics
 import org.lwjgl.glfw.GLFW
 import java.awt.Color
@@ -75,6 +77,7 @@ abstract class TextHudFeature(
     override fun getBounds(): BoundingBox = hud.getBounds()
 
     override fun drawImpl(ctx: GuiGraphics) {
+        if (isEditing) hud.resetLines()
         isEditing = false
         hud.draw(ctx)
     }
@@ -84,6 +87,7 @@ abstract class TextHudFeature(
     }
 
     override fun sampleDraw(ctx: GuiGraphics, mx: Int, my: Int, selected: Boolean) {
+        if (!isEditing) hud.storeLines()
         isEditing = true
         setEditDisplay()
         hud.draw(ctx)
@@ -99,6 +103,8 @@ abstract class TextHudFeature(
     override fun setLine(s: String) = apply { if (!isEditing) hud.setLine(s) }
     override fun setLines(s: List<String>) = apply { if (!isEditing) hud.setLines(s) }
     override fun removeLine(i: Int) = apply { if (!isEditing) hud.removeLine(i) }
+    override fun storeLines(): ITextHud = apply { hud.storeLines() }
+    override fun resetLines(): ITextHud = apply { hud.resetLines() }
 
     override fun onKeyPress(keyCode: Int) {
         super.onKeyPress(keyCode)
@@ -109,5 +115,19 @@ abstract class TextHudFeature(
             GLFW.GLFW_KEY_3 -> shadow = shadow.cycle()
             GLFW.GLFW_KEY_4 -> backdrop = backdrop.cycle()
         }
+    }
+
+    override fun coerceX(v: Double): Double {
+        if (!dirty && !isEditing) return super.coerceX(v)
+
+        val w = getEditText().maxOf { it.width() }.toDouble()
+        return v.coerceIn(MARGIN .. window.guiScaledWidth - w - MARGIN)
+    }
+
+    override fun coerceY(v: Double): Double {
+        if (!dirty && !isEditing) return super.coerceY(v)
+
+        val h = getEditText().maxOf { it.height() }.toDouble()
+        return v.coerceIn(MARGIN .. window.guiScaledHeight - h - MARGIN)
     }
 }

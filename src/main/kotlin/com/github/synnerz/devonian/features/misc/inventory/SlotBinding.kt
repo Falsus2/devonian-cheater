@@ -1,16 +1,19 @@
 package com.github.synnerz.devonian.features.misc.inventory
 
 import com.github.synnerz.devonian.Devonian
+import com.github.synnerz.devonian.api.Location
 import com.github.synnerz.devonian.api.events.*
 import com.github.synnerz.devonian.config.Config
 import com.github.synnerz.devonian.features.Feature
 import com.github.synnerz.devonian.mixin.accessor.AbstractContainerScreenAccessor
+import com.github.synnerz.devonian.utils.BasicState
 import com.github.synnerz.devonian.utils.render.Render2D
 import com.google.gson.JsonArray
 import com.google.gson.JsonPrimitive
 import com.mojang.blaze3d.platform.InputConstants
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper
 import net.minecraft.client.KeyMapping
+import net.minecraft.client.gui.screens.inventory.InventoryScreen
 import net.minecraft.sounds.SoundEvents
 import net.minecraft.sounds.SoundSource
 import net.minecraft.world.inventory.ClickType
@@ -23,6 +26,10 @@ object SlotBinding : Feature(
     "Bind a slot to another slot (with keybind in controls) so you can shift + left click on it to swap each others' items around.",
     subcategory = "Inventory",
 ) {
+    override fun createRequirements(): List<BasicState<Boolean>?> {
+        return listOf(Location.stateInSkyblock)
+    }
+
     private val SETTING_PROTECT = addSwitch(
         "protect",
         true,
@@ -174,6 +181,9 @@ object SlotBinding : Feature(
         }
 
         on<PreventItem.SlotEvent> { event ->
+            val screen = minecraft.screen ?: return@on
+            if (screen !is InventoryScreen) return@on
+
             (event.underlying as? QuickMoveItemEvent)?.also {
                 val slots = boundSlots.getOrNull(event.idx) ?: return@on
                 val other = slots.getOrNull(0) ?: return@on
