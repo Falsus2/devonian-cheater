@@ -1,6 +1,11 @@
 package com.github.synnerz.devonian.api.dungeon
 
-import com.github.synnerz.devonian.api.splits.*
+import com.github.synnerz.devonian.api.ChatUtils
+import com.github.synnerz.devonian.api.splits.BranchingSplitStage
+import com.github.synnerz.devonian.api.splits.SequentialSplitStage
+import com.github.synnerz.devonian.api.splits.SplitStage
+import com.github.synnerz.devonian.api.splits.TimeUnit
+import com.github.synnerz.devonian.commands.DevonianCommand
 import com.github.synnerz.devonian.features.dungeons.BossSplits
 import com.github.synnerz.devonian.features.dungeons.clear.RunSplits
 
@@ -25,7 +30,9 @@ object Stages {
     val F3: SequentialSplitStage
     val F4: SequentialSplitStage
     val F5: SequentialSplitStage
+
     val F6: SequentialSplitStage
+    val Terracottas = SplitStage().withName("&cTerracottas")
 
     val F7: SequentialSplitStage
     val Maxor = SplitStage().withName("&5Maxor")
@@ -55,40 +62,16 @@ object Stages {
                 SequentialSplitStage(
                     arrayOf(
                         BloodOpen,
-                        BranchingSplitStage(
+                        SplitStage(
+                            "^(\\[BOSS] The Watcher: .+?|The BLOOD DOOR has been opened!)$".toRegex(),
                             arrayOf(
-                                SplitStage(
-                                    "The BLOOD DOOR has been opened!",
+                                SequentialSplitStage(
                                     arrayOf(
-                                        InsulatingStage(
-                                            arrayOf(
-                                                SequentialSplitStage(
-                                                    arrayOf(
-                                                        FirstWatcherSpawn,
-                                                        SplitStage("[BOSS] The Watcher: Let's see how you can handle this.")
-                                                    )
-                                                ),
-                                                WatcherClear
-                                            )
-                                        )
+                                        FirstWatcherSpawn,
+                                        SplitStage("[BOSS] The Watcher: Let's see how you can handle this.")
                                     )
                                 ),
-                                SplitStage(
-                                    "^\\[BOSS] The Watcher: .+?$".toRegex(),
-                                    arrayOf(
-                                        InsulatingStage(
-                                            arrayOf(
-                                                SequentialSplitStage(
-                                                    arrayOf(
-                                                        FirstWatcherSpawn,
-                                                        SplitStage("[BOSS] The Watcher: Let's see how you can handle this.")
-                                                    )
-                                                ),
-                                                WatcherClear
-                                            )
-                                        )
-                                    )
-                                ),
+                                WatcherClear
                             )
                         ),
                         PortalEnter
@@ -138,7 +121,7 @@ object Stages {
         F6 = SequentialSplitStage(
             "[BOSS] Sadan: So you made it all the way here... Now you wish to defy me? Sadan?!",
             arrayOf(
-                SplitStage().withName("&4Terracottas"),
+                Terracottas,
                 SplitStage("[BOSS] Sadan: ENOUGH!").withName("&5Giants"),
                 SplitStage("[BOSS] Sadan: You did it. I understand now, you have earned my respect.")
                     .withName("&6Sadan"),
@@ -158,7 +141,7 @@ object Stages {
             )
         ).withName("&9Storm").withLongTime()
         Terminals = SequentialSplitStage(
-            "[BOSS] Goldor: Who dares trespass into my domain?",
+            "^(?:(\\w+) (?:activated|completed) a (terminal|lever|device)! \\((\\d)/\\d\\)|\\[BOSS] Goldor: Who dares trespass into my domain\\?)$".toRegex(),
             arrayOf(S1, S2, S3, S4),
         ).also { it.withName("&6Terminals") }
         Goldor = SplitStage("The Core entrance is opening!").withName("&8Goldor")
@@ -202,6 +185,53 @@ object Stages {
                 BossEnd,
             )
         )
+    }
+
+    fun initialize() {
+        val stageNames = mapOf(
+            "clear" to Clear,
+            "blood" to WatcherClear,
+            "portal" to PortalEnter,
+            "f1" to F1,
+            "f2" to F2,
+            "f3" to F3,
+            "f4" to F4,
+            "f5" to F5,
+            "f6" to F6,
+            "f7" to F7,
+            "maxor" to Maxor,
+            "storm" to Storm,
+            "stormlightning" to StormLightning,
+            "terminals" to Terminals,
+            "s1" to S1,
+            "s2" to S2,
+            "s3" to S3,
+            "s4" to S4,
+            "goldor" to Goldor,
+            "necron" to Necron,
+            "witherking" to WitherKing,
+        )
+
+        DevonianCommand.command.subcommand("setsplit") { _, args ->
+            val name = args.firstOrNull()?.toString() ?: return@subcommand 0
+            val stage = stageNames[name]
+            if (stage == null) {
+                ChatUtils.sendMessage("§4Unknown split: $name", true)
+                return@subcommand 0
+            }
+            Root.reset()
+            val q = ArrayDeque<SplitStage>()
+            var c = stage
+            while (c != null) {
+                q.add(c)
+                c = c.parent
+            }
+            while (q.isNotEmpty()) {
+                q.removeLast().start()
+            }
+            ChatUtils.sendMessage("§aSet split to: $name", true)
+            return@subcommand 1
+        }.greedyString("split").suggest("split", *stageNames.keys.toTypedArray())
     }
 }
 

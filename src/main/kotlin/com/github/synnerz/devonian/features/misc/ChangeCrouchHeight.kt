@@ -1,5 +1,6 @@
 package com.github.synnerz.devonian.features.misc
 
+import com.github.synnerz.devonian.Devonian
 import com.github.synnerz.devonian.api.Location
 import com.github.synnerz.devonian.features.Feature
 import com.github.synnerz.devonian.mixin.accessor.CameraAccessor
@@ -44,11 +45,12 @@ object ChangeCrouchHeight : Feature(
         return player.getDimensions(pose).eyeHeight
     }
 
-    fun changeNonVisual() = SETTING_CHANGE_ACTUAL_HEIGHT.get() && !Location.stateInLatestArea.value
+    fun changeNonVisual() = SETTING_CHANGE_ACTUAL_HEIGHT.get() && !Location.stateInLatestArea.value && Devonian.SETTING_KEEP_189.get()
 
     private var wasCrouching = false
 
     fun tick(camera: Camera): Boolean {
+        if (!isEnabled()) return false
         if (camera !is CameraAccessor) return false
 
         if (camera.entity == null) return false

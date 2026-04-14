@@ -7,6 +7,8 @@ import com.github.synnerz.devonian.api.events.ClientThreadServerTickEvent
 import com.github.synnerz.devonian.api.events.RenderOverlayEvent
 import com.github.synnerz.devonian.api.splits.TimeUnit
 import com.github.synnerz.devonian.config.Categories
+import com.github.synnerz.devonian.hud.texthud.FixedWidthTextHud
+import com.github.synnerz.devonian.hud.texthud.StylizedTextHud
 import com.github.synnerz.devonian.hud.texthud.TextHudFeature
 import com.github.synnerz.devonian.utils.BasicState
 import com.github.synnerz.devonian.utils.StringUtils.replaceCodes
@@ -26,7 +28,7 @@ object RunSplits : TextHudFeature(
     private val SETTING_SEND_ALL_END = addSwitch(
         "sendAllOnRunEnd",
         false,
-        "Sends all of the splits in chat whenever the run ends.",
+        "Sends all of the splits in chat whenever the run ends. §cIGNORES PARENT TOGGLE",
         "Run Splits Send All End",
     )
     private val SETTING_FORMAT = addSelection(
@@ -43,8 +45,14 @@ object RunSplits : TextHudFeature(
         "Show In Boss",
     )
 
+    override fun createHud(): StylizedTextHud = object : FixedWidthTextHud(configName, this@RunSplits) {
+        override fun getMaxLine(): String =
+            if (SETTING_FORMAT.get() == 2) "Portal Enter: 000.00s (000.00s)"
+            else "Portal Enter: 000.00s"
+    }
+
     fun onFloorEnd() {
-        if (!isEnabled()) return
+        // if (!isEnabled()) return
         if (!SETTING_SEND_ALL_END.get()) return
         Scheduler.scheduleServerTask(2) {
             Stages.Clear.getSplits(TimeUnit.Format.entries[SETTING_FORMAT.get()]).forEach {

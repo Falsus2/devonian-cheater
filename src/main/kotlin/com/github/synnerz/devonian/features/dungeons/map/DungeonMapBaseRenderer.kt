@@ -8,12 +8,10 @@ import com.github.synnerz.devonian.hud.texthud.*
 import com.github.synnerz.devonian.utils.BoundingBox
 import com.github.synnerz.devonian.utils.render.impl.TextRendererImpl
 import kotlinx.atomicfu.atomic
-import kotlinx.atomicfu.update
 import java.awt.Color
 import java.awt.Font
 import java.awt.image.BufferedImage
 import java.util.*
-import java.util.concurrent.ConcurrentLinkedQueue
 import javax.imageio.ImageIO
 import kotlin.math.abs
 import kotlin.math.ceil
@@ -48,8 +46,12 @@ class DungeonMapBaseRenderer :
 
     data class TextRenderParam(val box: BoundingBox, val key: CachedStringKey, val text: List<String>)
 
-    private val textHudPool = ConcurrentLinkedQueue<StylizedTextHud>()
     val delegatedText = atomic(emptyList<StylizedTextHud>())
+
+    override fun invalidate() {
+        super.invalidate()
+        delegatedText.value = emptyList()
+    }
 
     override fun drawImage(img: BufferedImage, param: DungeonMapRenderData): BufferedImage {
         val g = img.createGraphics()
@@ -226,14 +228,25 @@ class DungeonMapBaseRenderer :
                 -> cells.minBy { +it.cx - it.cz }.let { Pair(it.cx / 2 + 0.5, it.cz / 2 + 0.5) }
             DungeonMapRoomInfoAlignment.BottomRight
                 -> cells.minBy { -it.cx - it.cz }.let { Pair(it.cx / 2 + 0.5, it.cz / 2 + 0.5) }
-            DungeonMapRoomInfoAlignment.Center -> {
+            DungeonMapRoomInfoAlignment.Center,
+            DungeonMapRoomInfoAlignment.CenterL -> {
                 if (shape == ShapeTypes.ShapeL) {
                     val sorted = cells.sortedBy { it.cx + it.cz * 11 }
-                    val idx =
-                        if (sorted[0].cx > sorted[1].cx) 2
-                        else if (sorted[0].cx == sorted[2].cx) 0
-                        else 1
-                    Pair(sorted[idx].cx / 2 + 0.5, sorted[idx].cz / 2 + 0.5)
+                    if (alignment == DungeonMapRoomInfoAlignment.Center) {
+                        val idx =
+                            if (sorted[0].cx > sorted[1].cx) 2
+                            else if (sorted[0].cx == sorted[2].cx) 0
+                            else 1
+                        Pair(sorted[idx].cx / 2 + 0.5, sorted[idx].cz / 2 + 0.5)
+                    } else {
+                        val idx =
+                            if (sorted[0].cz == sorted[1].cz) 2
+                            else 0
+                        Pair(
+                            sorted.mapIndexed { i, v -> if (i == idx) 0.0 else v.cx / 2.0 }.sum() / 2.0 + 0.5,
+                            sorted.mapIndexed { i, v -> if (i == idx) 0.0 else v.cz / 2.0 }.sum() / 2.0 + 0.5,
+                        )
+                    }
                 } else Pair(
                     cells.sumOf { it.cx / 2.0 } / cells.size + 0.5,
                     cells.sumOf { it.cz / 2.0 } / cells.size + 0.5
@@ -338,17 +351,28 @@ class DungeonMapBaseRenderer :
                 (if (room.type == RoomTypes.PUZZLE) options.puzzleName else options.roomName) &&
                 (!options.roomCheckGreen || room.checkmark != CheckmarkTypes.GREEN)
 
-            val decoration =
+            var decoration =
                 (if (
                     (
                         options.checkMark ||
                         (renderName && room.name == null && room.checkmark != CheckmarkTypes.UNEXPLORED)
-                    ) && (!options.roomNoCheckName || !renderName || room.name == null)
+                    ) &&
+                    (!options.roomNoCheckName || !renderName || room.name == null) &&
+                    (!options.roomNoFairyCheck || room.type != RoomTypes.FAIRY || room.checkmark == CheckmarkTypes.UNEXPLORED)
                 ) {
                     if (options.renderUnknownRooms && room.checkmark == CheckmarkTypes.UNEXPLORED && room.name != null) null
                     else CHECKMARK[options.iconStyle][room.checkmark]
                 } else null) ?:
                 (if (renderRoomInfo && options.puzzleIcon) SPECIAL_ROOMS[room.name] else null)
+            if (
+                decoration == null &&
+                options.renderCheckIf0Secret &&
+                room.totalSecrets == 0 &&
+                (room.type == RoomTypes.YELLOW || room.type == RoomTypes.NORMAL || room.type == RoomTypes.BLOOD) &&
+                room.checkmark != CheckmarkTypes.UNEXPLORED &&
+                room.checkmark != CheckmarkTypes.NONE
+            )
+                decoration = CHECKMARK[options.iconStyle][room.checkmark]
             val text = mutableListOf<String>()
 
             if (renderName) room.name?.also { name ->
@@ -395,7 +419,7 @@ class DungeonMapBaseRenderer :
 
             if (decoration == null && text.isEmpty()) return@forEach
 
-            if (decoration != null && !(options.roomNoFairyCheck && room.type == RoomTypes.FAIRY)) {
+            if (decoration != null) {
                 val decW = options.iconSize * options.roomWidth
                 val center = getCenterOf(cells, shape, options.iconAlignment)
                 val decBox = BoundingBox(
@@ -432,7 +456,7 @@ class DungeonMapBaseRenderer :
                 textToRender.forEach { (decBox, _, text) ->
                     if (text.isEmpty()) return@forEach
 
-                    val hud = textHudPool.poll() ?: StylizedTextHud(
+                    val hud = StylizedTextHud(
                         "internal_map_room_text",
                         StaticProvider(
                             0.0, 0.0, 1f,
@@ -455,10 +479,7 @@ class DungeonMapBaseRenderer :
                     delegate.add(hud)
                 }
 
-                delegatedText.update { old ->
-                    old.forEach { textHudPool.add(it) }
-                    delegate
-                }
+                delegatedText.value = delegate
             } else {
                 val fontSizeF = fontSize.toFloat()
                 val font = BImgTextHudRenderer.fontMainBase.deriveFont(Font.PLAIN, fontSizeF)

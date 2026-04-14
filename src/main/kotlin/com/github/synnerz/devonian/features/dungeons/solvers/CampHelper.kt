@@ -1,7 +1,6 @@
 package com.github.synnerz.devonian.features.dungeons.solvers
 
 import com.github.synnerz.devonian.Devonian
-import com.github.synnerz.devonian.api.Ping
 import com.github.synnerz.devonian.api.Scheduler
 import com.github.synnerz.devonian.api.dungeon.ComponentPosition
 import com.github.synnerz.devonian.api.dungeon.DungeonScanner
@@ -15,17 +14,20 @@ import com.github.synnerz.devonian.mixin.accessor.ClientboundMoveEntityPacketAcc
 import com.github.synnerz.devonian.utils.BasicState
 import com.github.synnerz.devonian.utils.math.MathUtils
 import com.github.synnerz.devonian.utils.render.Render3DImmediate
+import net.minecraft.ChatFormatting
+import net.minecraft.network.chat.TextColor
 import net.minecraft.network.protocol.game.ClientboundMoveEntityPacket
+import net.minecraft.sounds.SoundEvents
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.EntityType
 import net.minecraft.world.entity.EquipmentSlot
 import net.minecraft.world.entity.decoration.ArmorStand
 import net.minecraft.world.item.Items
+import net.minecraft.world.phys.Vec3
 import java.awt.Color
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.abs
 import kotlin.math.floor
-import kotlin.math.max
 import kotlin.math.roundToInt
 
 object CampHelper : Feature(
@@ -46,30 +48,25 @@ object CampHelper : Feature(
         "renders timer under each box",
         "Camp Show Timer",
     )
-    private val SETTING_USE_PING = addSwitch(
-        "usePing",
-        true,
-        "attempts to correct timer for ping",
-        "Camp Adjust For Ping",
-    )
-    private val SETTING_WIRE_COLOR = addColorPicker(
-        "wireColor",
-        Color(0, 255, 0).rgb,
-        "",
-        "Camp Wire Color",
-    )
-    private val SETTING_FILL_COLOR = addColorPicker(
-        "fillColor",
-        Color(0, 255, 255).rgb,
-        "",
-        "Camp Fill Color",
-    )
     private val SETTING_LINE_WIDTH = addSlider(
         "lineWidth",
         3.0,
         0.0, 10.0,
         "",
         "Camp Line Width",
+    )
+    private val SETTING_PLAY_SOUND = addSwitch(
+        "playSound",
+        false,
+        "Plays a sound whenever you _should_ be able to hit the blood mob",
+        "Camp Mob Sound"
+    )
+    private val SETTING_SOUND_THRESHOLD = addSlider(
+        "soundThreshold",
+        1.3,
+        0.0, 10.0,
+        "The amount of TICKS at which the PlaySound feature should play (1 tick = 0.05s, default is 1.3 = 0.065s)",
+        "Camp Mob Sound Threshold"
     )
 
     private var bloodComp: ComponentPosition? = null
@@ -148,33 +145,62 @@ object CampHelper : Feature(
                 val y = MathUtils.lerp(f, v.guessYOld, v.guessY) + 1.0
                 val z = MathUtils.lerp(f, v.guessZOld, v.guessZ)
 
-                val m = 1.0 - (max(ttl, 0) - (if (SETTING_USE_PING.get()) Ping.getMedianPing() / 50.0 else 0.0)) / v.maxTTL
                 val w = 1.0
-                val h = 2.0
+                val h = 1.0
+                val color = Color(colorForNumber2(ttl, v.maxTTL))
+                if (SETTING_PLAY_SOUND.get() && ttl < SETTING_SOUND_THRESHOLD.get() && !v.triggeredSound) {
+                    v.triggeredSound = true
+                    minecraft.player?.playSound(SoundEvents.NOTE_BLOCK_COW_BELL.value())
+                }
 
                 Render3DImmediate.renderWireframeBox(
-                    x, y, z,
+                    x, y + 1.0, z,
                     w, h,
-                    SETTING_WIRE_COLOR.getColor(),
+                    color,
                     lineWidth = SETTING_LINE_WIDTH.get(),
                     centered = true,
                 )
-                Render3DImmediate.renderFilledBox(
-                    x,
-                    y + (h - h * m) * 0.5,
-                    z,
-                    w * m, h * m,
-                    SETTING_FILL_COLOR.getColor(),
-                    centered = true,
-                )
+
+                v.ent?.let {
+                    Render3DImmediate.renderWireframeBox(
+                        it.x, it.y + 1.7, it.z,
+                        w, h,
+                        Color.RED,
+                        lineWidth = SETTING_LINE_WIDTH.get(),
+                        centered = true,
+                    )
+                    Render3DImmediate.renderLine(
+                        Vec3(it.x, it.y + 1.7, it.z),
+                        Vec3(x, y + 1.0, z),
+                        Color.RED,
+                        lineWidth = SETTING_LINE_WIDTH.get(),
+                    )
+                }
 
                 if (SETTING_SHOW_TIMER.get()) Render3DImmediate.renderString(
-                    "%.2f".format(ttl * 0.05),
-                    x, y - 1.0, z,
+                    "${colorForNumber(ttl, v.maxTTL)}%.2f".format((ttl * 0.05).coerceAtLeast(0.0)),
+                    x, y + 1.5, z,
+                    scale = 2.5f,
                     maxDist = 24.0,
                 )
             }
         }
+    }
+
+    private fun colorForNumber(num: Int, max: Int) = when {
+        num >= max * 0.75 -> "§c"
+        num >= max * 0.50 -> "§e"
+        num >= max * 0.25 -> "§a"
+        num >= max * 0.001 -> "§a"
+        else -> "§b"
+    }
+
+    private fun colorForNumber2(num: Int, max: Int) = when {
+        num >= max * 0.75 -> TextColor.fromLegacyFormat(ChatFormatting.RED)!!.value
+        num >= max * 0.50 -> TextColor.fromLegacyFormat(ChatFormatting.YELLOW)!!.value
+        num >= max * 0.25 -> TextColor.fromLegacyFormat(ChatFormatting.GREEN)!!.value
+        num >= max * 0.001 -> TextColor.fromLegacyFormat(ChatFormatting.GREEN)!!.value
+        else -> TextColor.fromLegacyFormat(ChatFormatting.AQUA)!!.value
     }
 
     override fun onWorldChange(event: WorldChangeEvent) {
@@ -207,6 +233,7 @@ class UndeadGuesser(val id: Int) {
     var calcStart = false
 
     var hasSpawn = false
+    var triggeredSound = false
 
     fun shouldShow() = hasSpawn && (ent?.isAlive == true) && startTick != -1 && !dead && guessTime > 0L
 

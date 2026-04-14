@@ -1,7 +1,6 @@
 package com.github.synnerz.devonian.features.dungeons.clear
 
 import com.github.synnerz.devonian.api.ItemUtils
-import com.github.synnerz.devonian.api.Scheduler
 import com.github.synnerz.devonian.api.dungeon.DungeonClass
 import com.github.synnerz.devonian.api.dungeon.Dungeons
 import com.github.synnerz.devonian.api.dungeon.Stages
@@ -46,6 +45,18 @@ object KeyPickup : Feature(
         "",
         "Key Fill Color",
     )
+    private val SETTING_KEY_WIRE_PHASE = addSwitch(
+        "wirePhase",
+        false,
+        "",
+        "Key Outline Phase"
+    )
+    private val SETTING_KEY_FILL_PHASE = addSwitch(
+        "fillPhase",
+        false,
+        "",
+        "Key Fill Phase"
+    )
     private val SETTING_KEY_LINE_WIDTH = addSlider(
         "lineWidth",
         3.0,
@@ -78,8 +89,8 @@ object KeyPickup : Feature(
 
     private val pickupSound = SoundEvents.VAULT_OPEN_SHUTTER
 
-    private val witherKeyRegex = "^.+?(\\w+) has obtained Wither Key!$".toRegex()
-    private val bloodKeyRegex = "^.+?(\\w+) has obtained Blood Key!$".toRegex()
+    private val witherKeyRegex = "^.*?(\\w+) has obtained Wither Key!$".toRegex()
+    private val bloodKeyRegex = "^.*?(\\w+) has obtained Blood Key!$".toRegex()
 
     private val witherKeyId = UUID.fromString("2865274b-3097-394e-8149-ec629c72d850")
     private val bloodKeyId = UUID.fromString("73f6d1f9-df41-3d1d-b98c-e1442d915885")
@@ -115,10 +126,8 @@ object KeyPickup : Feature(
                 else -> null
             } ?: return@on
 
-            Scheduler.scheduleTask {
-                if (SETTING_KEY_PICKUP_SOUND.get()) minecraft.player?.playSound(pickupSound, 2f, 1f)
-                if (SETTING_KEY_PICKUP_TITLE.get()) Alert.show(title, SETTING_KEY_PICKUP_TIME.get().toInt() * 1000, playSound = false)
-            }
+            if (SETTING_KEY_PICKUP_SOUND.get()) minecraft.player?.playSound(pickupSound, 2f, 1f)
+            if (SETTING_KEY_PICKUP_TITLE.get()) Alert.show(title, SETTING_KEY_PICKUP_TIME.get().toInt() * 1000, playSound = false)
         }
         on<EntityEquipmentEvent> { event ->
             if (event.type != EntityType.ARMOR_STAND) return@on
@@ -164,7 +173,7 @@ object KeyPickup : Feature(
                     pos.z,
                     1.0, 1.0,
                     SETTING_KEY_WIRE_COLOR.getColor(),
-                    phase = true,
+                    phase = SETTING_KEY_WIRE_PHASE.get(),
                     lineWidth = SETTING_KEY_LINE_WIDTH.get(),
                     centered = true,
                 )
@@ -174,7 +183,7 @@ object KeyPickup : Feature(
                     pos.z,
                     1.0, 1.0,
                     SETTING_KEY_FILL_COLOR.getColor(),
-                    phase = false,
+                    phase = SETTING_KEY_FILL_PHASE.get(),
                     centered = true,
                 )
                 return@removeIf false

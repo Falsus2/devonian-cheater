@@ -5,6 +5,7 @@ import com.github.synnerz.devonian.api.events.*
 import com.github.synnerz.devonian.config.Categories
 import com.github.synnerz.devonian.features.Feature
 import com.github.synnerz.devonian.utils.BasicState
+import com.github.synnerz.devonian.utils.math.MathUtils
 import com.github.synnerz.devonian.utils.render.Render3DImmediate
 import net.minecraft.network.protocol.game.ClientboundAddEntityPacket
 import net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket
@@ -71,6 +72,19 @@ object BoxStarMob : Feature(
         "",
         "Starred Mobs Line Width",
     )
+    private val SETTING_FILL_ALPHA = addDecimalSlider(
+        "fillAlpha",
+        0.0,
+        0.0, 1.0,
+        "if you want to change the color of each fill individually, seek help",
+        "Starred Mobs Fill Alpha",
+    )
+    private val SETTING_SHOW_FULL_SHADOW = addSwitch(
+        "showFullShadow",
+        true,
+        "Shows the full hitbox of shadow assassins even if they are invisible (if disabled it'll only show boots hitbox on invis then full hitbox)",
+        "Show Full ShadowAssassin"
+    )
     private val SETTING_PHASE = addSwitch(
         "phase",
         false,
@@ -86,9 +100,9 @@ object BoxStarMob : Feature(
     private var lastStand: Int = 0
 
     private fun getMobDataFromArmorStand(name: String): MobData {
-        if (name.contains("Shadow Assassin")) return MobData(2.0, SETTING_SA_COLOR.getColor())
+        if (name.contains("Shadow Assassin")) return MobData(2.0, SETTING_SA_COLOR.getColor(), isShadowAssassin = true)
 
-        if (name.contains("Fels")) return MobData(3.0, SETTING_FEL_COLOR.getColor())
+        if (name.contains("Fels")) return MobData(3.0, SETTING_FEL_COLOR.getColor(), true)
 
         if (name.contains("Skeleton Master")) return MobData(2.0, SETTING_SM_COLOR.getColor())
 
@@ -120,7 +134,19 @@ object BoxStarMob : Feature(
         else -> null
     }
 
-    private data class MobData(val height: Double, val color: Color)
+    private data class MobData(
+        val height: Double,
+        val color: Color,
+        val isFel: Boolean = false,
+        val isShadowAssassin: Boolean = false,
+    ) {
+        val offset = MathUtils.rescale(
+            color.rgb.toDouble(),
+            Int.MIN_VALUE.toDouble(),
+            Int.MAX_VALUE.toDouble(),
+            0.0, 0.01,
+        )
+    }
 
     override fun initialize() {
         on<NameChangeEvent> { event ->
@@ -183,14 +209,31 @@ object BoxStarMob : Feature(
                 if (ent.isDeadOrDying || ent.isRemoved) return@removeIf true
 
                 val pos = ent.getPosition(minecraft.deltaTracker.getGameTimeDeltaPartialTick(false))
+                val height = when {
+                    data.isFel && ent.isInvisible -> 0.8
+                    !SETTING_SHOW_FULL_SHADOW.get() && ent.isInvisible -> 0.8
+                    else -> data.height
+                }
+
                 Render3DImmediate.renderWireframeBox(
                     pos.x,
                     pos.y,
                     pos.z,
-                    0.8, data.height,
+                    0.8 + data.offset, height,
                     data.color,
                     phase = SETTING_PHASE.get(),
                     lineWidth = SETTING_LINE_WIDTH.get(),
+                    centered = true,
+                )
+                Render3DImmediate.renderFilledBox(
+                    pos.x,
+                    pos.y,
+                    pos.z,
+                    0.8 + data.offset, height,
+                    data.color.let {
+                        Color(it.red, it.green, it.blue, (SETTING_FILL_ALPHA.get() * 255.0).toInt())
+                    },
+                    phase = false,
                     centered = true,
                 )
                 false

@@ -3,18 +3,25 @@ package com.github.synnerz.devonian.features.misc
 import com.github.synnerz.devonian.Devonian
 import com.github.synnerz.devonian.api.ChatUtils
 import com.github.synnerz.devonian.api.Scheduler
+import com.github.synnerz.devonian.api.events.EventBus
+import com.github.synnerz.devonian.api.events.KeyPressEvent
+import com.github.synnerz.devonian.api.events.MousePressEvent
 import com.github.synnerz.devonian.commands.DevonianCommand
+import com.github.synnerz.devonian.config.Categories
 import com.github.synnerz.devonian.config.Config
+import com.github.synnerz.devonian.config.ConfigData
 import com.github.synnerz.talium.components.*
 import com.github.synnerz.talium.events.UIClickEvent
 import com.github.synnerz.talium.events.UIFocusEvent
 import com.github.synnerz.talium.events.UIKeyType
+import com.google.common.collect.ArrayListMultimap
+import com.google.common.collect.ImmutableListMultimap
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.screens.Screen
+import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
-import net.minecraft.client.input.MouseButtonInfo
 import net.minecraft.network.chat.Component
 import org.lwjgl.glfw.GLFW
 import java.awt.Color
@@ -66,27 +73,26 @@ object KeyShortcuts : Screen(Component.literal("Devonian.KeyShortcuts")) {
             currentPage++
         }
     }
-    private val bindsList = mutableListOf<ShortCut>()
     private var currentPage = 0
         set(value) {
             field = value.coerceIn(0, components.size / 7)
             onUpdate()
         }
 
+    private val bindsList = mutableListOf<ShortCut>()
+    private var keyCache = ImmutableListMultimap.of<Int, String>()
+
+    private fun rebuildCache() {
+        val cache = ArrayListMultimap.create<Int, String>()
+        bindsList.forEach {
+            if (!it.shouldTrigger()) return@forEach
+            cache.put(it.bind, it.command)
+        }
+
+        keyCache = ImmutableListMultimap.copyOf(cache)
+    }
+
     data class ShortCut(var bind: Int, var command: String) {
-        fun onKeyPress(keyEvent: KeyEvent) {
-            if (!shouldTrigger()) return
-            if (keyEvent.key != bind) return
-            ChatUtils.say(command)
-        }
-
-        fun onButtonPress(btnInfo: MouseButtonInfo) {
-            if (!shouldTrigger()) return
-            if (bind > 0) return
-            if (-100 + btnInfo.button != bind) return
-            ChatUtils.say(command)
-        }
-
         fun shouldTrigger(): Boolean {
             if (bind == -1) return false
             if (command.isBlank()) return false
@@ -96,6 +102,20 @@ object KeyShortcuts : Screen(Component.literal("Devonian.KeyShortcuts")) {
     }
 
     fun initialize() {
+        ConfigData.Button(
+            {
+                Scheduler.scheduleTask {
+                    Devonian.minecraft.setScreen(this)
+                }
+            },
+            "Run",
+            null,
+            "Opens a gui where you can add your own keybind shortcuts (/dv ksho)",
+            "Key Shortcuts",
+        ).also {
+            Config.registerCategory(it, Categories.GLOBAL, "Commands")
+        }
+
         Config.set(KEY_NAME, JsonObject())
 
         Config.onAfterLoad {
@@ -106,6 +126,16 @@ object KeyShortcuts : Screen(Component.literal("Devonian.KeyShortcuts")) {
                 val command = v.get("command").asString
                 createKeyBind(if (components.isEmpty()) 1 else 1 + (components.size % 7), command, keycode)
             }
+
+            rebuildCache()
+        }
+
+        EventBus.on<KeyPressEvent> { event ->
+            triggerBind(event.key)
+        }
+
+        EventBus.on<MousePressEvent> { event ->
+            triggerBind(-100 + event.button)
         }
 
         DevonianCommand.command.subcommand("ksho") { _, args ->
@@ -160,6 +190,7 @@ object KeyShortcuts : Screen(Component.literal("Devonian.KeyShortcuts")) {
             onLostFocus {
                 data.command = text
                 updateCache()
+                rebuildCache()
             }
         }
         val keybind = UIKeyBind(55.0, 0.0, 23.0, 100.0, bind, parent = bindRect).apply {
@@ -169,6 +200,7 @@ object KeyShortcuts : Screen(Component.literal("Devonian.KeyShortcuts")) {
                 //  cannot accidentally bind one of these
                 data.bind = this.bind
                 updateCache()
+                rebuildCache()
             }
         }
         val remove = UIRect(79.0, 0.0, 20.0, 100.0, parent = bindRect).apply {
@@ -179,6 +211,7 @@ object KeyShortcuts : Screen(Component.literal("Devonian.KeyShortcuts")) {
                 bindsList.remove(data)
                 components.remove(bindRect)
                 ChatUtils.sendMessage("&cRemoved KeyShortcut &7[${UIKeyBind.keyName(data.bind)} > ${data.command}]", true)
+                rebuildCache()
                 updateCache()
                 bindRect.remove()
                 rebuildChildren()
@@ -202,12 +235,10 @@ object KeyShortcuts : Screen(Component.literal("Devonian.KeyShortcuts")) {
             createKeyBind(if (components.isEmpty()) 1 else 1 + (components.size % 7), data.command, data.bind)
     }
 
-    fun onKeyPress(event: KeyEvent) {
-        bindsList.forEach { it.onKeyPress(event) }
-    }
-
-    fun onButtonPress(btnInfo: MouseButtonInfo) {
-        bindsList.forEach { it.onButtonPress(btnInfo) }
+    private fun triggerBind(bind: Int) {
+        keyCache.get(bind).forEach {
+            ChatUtils.say(it)
+        }
     }
 
     override fun render(guiGraphics: GuiGraphics, mouseX: Int, mouseY: Int, deltaTicks: Float) {
@@ -227,6 +258,11 @@ object KeyShortcuts : Screen(Component.literal("Devonian.KeyShortcuts")) {
                 hadFocus
         }) return false
         return super.keyPressed(keyEvent)
+    }
+
+    override fun charTyped(characterEvent: CharacterEvent): Boolean {
+        background.handleCharType(characterEvent.codepoint, characterEvent.codepointAsString(), characterEvent.modifiers)
+        return super.charTyped(characterEvent)
     }
 
     override fun isPauseScreen(): Boolean {

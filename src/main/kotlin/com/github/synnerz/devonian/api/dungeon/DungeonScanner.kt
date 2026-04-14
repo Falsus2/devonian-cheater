@@ -51,8 +51,8 @@ object DungeonScanner {
     var rooms = MutableList<DungeonRoom?>(36) { null }
     var doors = MutableList<DungeonDoor?>(60) { null }
     var availablePos = findAvailablePos()
-    private var worldChangeCooldown = 5
-    private var foundEntrance = 5
+    private var worldChangeCooldown = 20
+    private var foundEntrance = 20
     private var wasInEntrance = false
 
     private val secretRegex = "\\b(\\d+)/(\\d+) Secrets".toRegex()
@@ -155,11 +155,12 @@ object DungeonScanner {
             val player = Devonian.minecraft.player ?: return@on
             if (!WorldUtils.isChunkLoaded(player.x, player.z)) return@on
             val comp = WorldPosition(player.x.toInt(), player.z.toInt()).toComponent()
+            if (!comp.isInBounds()) return@on
             val jdx = comp.getRoomIdx()
 
             if (jdx !in 0..35) return@on
 
-            scan()
+            var updateMap = scan()
 
             val newRoom = rooms[jdx]
             if (!wasInEntrance) {
@@ -177,10 +178,17 @@ object DungeonScanner {
                 DungeonEvent.RoomLeave(currentRoom, lastIdx!!).post()
 
             currentRoom = rooms[jdx]
-            if (currentRoom != null && !currentRoom!!.explored)
+            if (currentRoom?.explored == false) {
                 Dungeons.totalRoomSecrets.value += currentRoom!!.totalSecrets
-            currentRoom?.explored = true
-            if (currentRoom?.checkmark == CheckmarkTypes.UNEXPLORED) currentRoom?.checkmark = CheckmarkTypes.NONE
+                currentRoom?.explored = true
+                updateMap = true
+            }
+            if (currentRoom?.checkmark == CheckmarkTypes.UNEXPLORED) {
+                currentRoom?.checkmark = CheckmarkTypes.NONE
+                updateMap = true
+            }
+
+            if (updateMap) DungeonMap.redrawMap(rooms.toList(), doors.toList())
 
             if (lastIdx == jdx) return@on
             lastIdx = jdx
@@ -201,6 +209,7 @@ object DungeonScanner {
 
             if (total != room.totalSecrets) println("mismatching secret counts in ${room.name}")
             room.secretsCompleted = found
+            DungeonEvent.SecretUpdateEvent(found, total, room).post()
         }.setEnabled(Location.stateInArea("catacombs"))
     }
 
@@ -319,9 +328,9 @@ object DungeonScanner {
         availablePos = findAvailablePos().asReversed()
     }
 
-    fun scan() {
+    fun scan(): Boolean {
         foundEntrance--
-        if (availablePos.isEmpty()) return
+        if (availablePos.isEmpty()) return false
 
         val startLen = availablePos.size
         availablePos.removeIf { pos ->
@@ -394,6 +403,6 @@ object DungeonScanner {
             return@removeIf true
         }
 
-        if (availablePos.size != startLen) DungeonMap.redrawMap(rooms.toList(), doors.toList())
+        return availablePos.size != startLen
     }
 }

@@ -158,8 +158,9 @@ object DungeonMapScanner {
         if (colors[0] != MapColors.EMPTY.color) return
 
         val visited = mutableSetOf<DungeonRoom>()
-        DungeonScanner.rooms.forEachIndexed { idx, room_ ->
-            if (room_ != null && !visited.add(room_)) return@forEachIndexed
+        for (idx in DungeonScanner.rooms.indices) {
+            val room_ = DungeonScanner.rooms[idx]
+            if (room_ != null && !visited.add(room_)) continue
 
             val x = idx % 6
             val z = idx / 6
@@ -170,10 +171,10 @@ object DungeonMapScanner {
             val mridx = mrx + mrz * SCAN
             val mcidx = mcx + mcz * SCAN
 
-            val roomCol = colors.getOrNull(mridx) ?: return@forEachIndexed
-            val centerCol = colors.getOrNull(mcidx) ?: return@forEachIndexed
+            val roomCol = colors.getOrNull(mridx) ?: continue
+            val centerCol = colors.getOrNull(mcidx) ?: continue
 
-            if (roomCol == MapColors.EMPTY.color) return@forEachIndexed
+            if (roomCol == MapColors.EMPTY.color) continue
 
             val room: DungeonRoom
             if (room_ == null) {
@@ -203,6 +204,7 @@ object DungeonMapScanner {
             }
 
             if (room.checkmark != CheckmarkTypes.GREEN) {
+                val previousCheck = room.checkmark
                 room.checkmark = if (roomCol == centerCol) CheckmarkTypes.NONE
                 else when (centerCol) {
                     MapColors.CHECK_WHITE.color -> CheckmarkTypes.WHITE
@@ -216,6 +218,7 @@ object DungeonMapScanner {
                 if (room.type == RoomTypes.TRAP && room.checkmark == CheckmarkTypes.WHITE) {
                     room.secretsCompleted = max(room.secretsCompleted, 1)
                 }
+                if (previousCheck != room.checkmark) DungeonEvent.RoomUpdateEvent(room, previousCheck, room.checkmark).post()
             }
         }
 

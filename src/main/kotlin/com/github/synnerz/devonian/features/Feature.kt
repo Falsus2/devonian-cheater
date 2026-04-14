@@ -58,8 +58,9 @@ open class Feature @JvmOverloads constructor(
     }
 
     fun preinitialize() {
-        createRequirements().reduce { a, v ->
-            if (a == null || v == null) a
+        createRequirements().reduceOrNull { a, v ->
+            if (a == null) v
+            else if (v == null) a
             else a.zip(v, Boolean::and)
         }?.let { setEnabled(it) }
     }
@@ -102,7 +103,7 @@ open class Feature @JvmOverloads constructor(
             searchTags,
             isHidden,
         ).also {
-            if (isInternal) return@also
+            if (isInternal && configName != "hudManagerHider" && configName != "hudManagerRenderer" && configName != "hudManagerGrid") return@also
             subcategories.forEach { s -> Config.registerCategory(it, category, s) }
             Config.registerCategory(it, category, subcategory)
             Config.features.add(it)

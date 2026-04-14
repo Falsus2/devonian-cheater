@@ -22,15 +22,70 @@ object HideNoStarTag : Feature(
         "L.A.S.R.", "The Diamond Giant", "Jolly Pink Giant", "Bigfoot"
     )
     private val exceptions = setOf(
-        // TODO: admin souls
-        "Mimic", "Prince", "Crypt Undead",
+        "Mimic", "Crypt Undead",
+
+        "Prince Alexander",
+        "Prince Bernhard",
+        "Prince Christian",
+        "Prince Friedrich",
+        "Prince Marius",
+        "Prince Nicholas",
+        "Prince Pieter",
+        "Prince Valentin",
+
+        "hypixel",
+        "sfarnham",
+        "aPunch",
+        "Jayavarmen",
+        "Don Pireso",
+        "codename_B",
+        "WilliamTiger",
+        "TheMGRF",
+        "Ob111",
+        "Sylent",
+        "Bloozing",
+        "Nitroholic",
+        "Minikloon",
+        "Relenter",
+        "Externalizable",
+        "Plancke",
+        "ChiLynn",
+        "skyerzz",
+        "Magicboys",
+        "Cecer",
+        "Likaos",
+        "Linfoot",
+        "Dctr",
+        "_onah",
+        "falloutowns",
+        "LadyBleu",
+        "Revengeee",
+        "Bembo",
+        "flameboy101",
+        "JamieTheGeek",
+        "Judg3",
+        "Rezzus",
+        "AgentK",
+        "Thorlon",
+        "Vinny",
+        "fudgiethewhale",
+        "DistrictGecko",
+        "Dueces",
+        "Cheesey",
+        "BlocksKey",
+        "DEADORKAI",
+        "Plummel",
+        "AdamWho",
+        "Winghide",
+        "MistressEldrid",
+
         "Blaze",
         "King Midas",
         "Deathmite",
 
         "Akia", "Ilene", "Kari", "Lelani", "Steve", "Synestra", "Tyene", "Ussaea", "Yve", "Zana", "Trisha", "Nymira"
     ) + bloodExceptions
-    private val noStarTagRegex = "^(?:\\[Lv\\d+] )?[^\\sA-Za-z]* ?([A-Za-z ]+) [\\dkM.,/]+❤$".toRegex()
+    private val noStarTagRegex = "^(?:\\[Lv\\d+] )?[^\\sA-Za-z]* ?([A-Za-z ]+) [\\dkMB.,/]+❤$".toRegex()
 
     override fun initialize() {
         on<NameChangeEvent> { event ->

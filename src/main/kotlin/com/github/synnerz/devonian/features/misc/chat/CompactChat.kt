@@ -32,28 +32,37 @@ object CompactChat : Feature(
     private val textContentCache = IdentityHashMap<GuiMessage, String?>()
     private val nonLineBreakMessage = "\\w".toRegex()
 
-    data class MessageHistory(var count: Int = 0, var lastTime: Long = 0L)
+    data class MessageHistory(var count: Int = 0, var lastTime: Long = 0L, var lastCheck: GuiMessage? = null)
 
     fun compactText(text: Component): Component {
         if (!isEnabled()) return text
-        val string = text.string
-        if (string.isBlank()) return text
+
+        val textStrRaw = text.string
+        val textStr = textStrRaw.clearCodes()
+        if (textStr.isBlank()) return text
+
         val time = System.currentTimeMillis()
-        val cachedData = chatHistory.getOrPut(string) { MessageHistory(0, time) }
+        val cachedData = chatHistory.getOrPut(textStr) { MessageHistory(0, time) }
         if (time - cachedData.lastTime > 60_000) cachedData.count = 0
 
         cachedData.count++
         cachedData.lastTime = time
         if (cachedData.count <= 1) {
-            recentMessages[string] = 1
+            recentMessages[textStr] = 1
+            cachedData.lastCheck = ChatUtils.chatComponentAccessor.messages.firstOrNull()
             return text
         }
 
         val iter = ChatUtils.chatComponentAccessor.messages.listIterator()
         var refresh = false
+        var first: GuiMessage? = null
 
         while (iter.hasNext()) {
             val line = iter.next()
+            if (first == null) first = line
+
+            if (line === cachedData.lastCheck) break
+
             val msg = textContentCache.getOrPut(line) {
                 val contentCopy = line.content.copy()
                 contentCopy.siblings.removeIf { it.contents is CompactChatComponent }
@@ -61,7 +70,7 @@ object CompactChat : Feature(
                 return@getOrPut contentCopy.string.clearCodes()
             } ?: continue
 
-            if (msg == string) {
+            if (msg == textStr) {
                 val count = recentMessages.merge(msg, 1, Int::plus) ?: 1
                 if (count == 1 || nonLineBreakMessage.containsMatchIn(msg)) {
                     iter.remove()
@@ -82,10 +91,12 @@ object CompactChat : Feature(
                 break
             }
         }
-        if (refresh) ChatUtils.chatComponentAccessor.invokeRefresh()
-        else recentMessages[string] = 1
+        if (refresh) ChatUtils.refreshChat()
+        else recentMessages[textStr] = 1
 
-        return text.copy().append(CompactChatComponent.of(cachedData.count).withStyle(STYLE))
+        cachedData.lastCheck = first
+
+        return text.copy().append(CompactChatComponent.of(text, cachedData.count).withStyle(STYLE))
     }
 
     fun clearHistory() {
@@ -102,10 +113,11 @@ object CompactChat : Feature(
 
 // Credits to <https://github.com/caoimhebyrne/compact-chat>
 // Licensed under the MIT license
-class CompactChatComponent(val times: Int = 0) : PlainTextContents {
+class CompactChatComponent(val orig: Component, val times: Int = 0) : PlainTextContents {
     companion object {
         @JvmStatic
-        fun of(times: Int): MutableComponent = MutableComponent.create(CompactChatComponent(times))
+        fun of(orig: Component, times: Int): MutableComponent =
+            MutableComponent.create(CompactChatComponent(orig, times))
     }
 
     override fun text(): String = " ($times)"

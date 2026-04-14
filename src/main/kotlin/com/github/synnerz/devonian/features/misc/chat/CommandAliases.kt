@@ -5,7 +5,9 @@ import com.github.synnerz.devonian.api.ChatUtils
 import com.github.synnerz.devonian.api.Scheduler
 import com.github.synnerz.devonian.api.events.CancellableEvent
 import com.github.synnerz.devonian.commands.DevonianCommand
+import com.github.synnerz.devonian.config.Categories
 import com.github.synnerz.devonian.config.Config
+import com.github.synnerz.devonian.config.ConfigData
 import com.github.synnerz.talium.components.UIRect
 import com.github.synnerz.talium.components.UIText
 import com.github.synnerz.talium.components.UITextInput
@@ -14,6 +16,7 @@ import com.google.gson.JsonObject
 import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.screens.Screen
+import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.network.chat.Component
 import java.awt.Color
@@ -96,6 +99,20 @@ object CommandAliases : Screen(Component.literal("Devonian.CommandAliases")) {
     }
 
     fun initialize() {
+        ConfigData.Button(
+            {
+                Scheduler.scheduleTask {
+                    Devonian.minecraft.setScreen(this)
+                }
+            },
+            "Run",
+            null,
+            "Opens a gui where you can add your own command aliases (/dv cmdali)",
+            "Command Aliases",
+        ).also {
+            Config.registerCategory(it, Categories.GLOBAL, "Commands")
+        }
+
         Config.set(KEY_NAME, JsonObject())
 
         Config.onAfterLoad {
@@ -225,6 +242,11 @@ object CommandAliases : Screen(Component.literal("Devonian.CommandAliases")) {
     override fun keyPressed(keyEvent: KeyEvent): Boolean {
         background.handleKeyInput(keyEvent.key, keyEvent.scancode)
         return super.keyPressed(keyEvent)
+    }
+
+    override fun charTyped(characterEvent: CharacterEvent): Boolean {
+        background.handleCharType(characterEvent.codepoint, characterEvent.codepointAsString(), characterEvent.modifiers)
+        return super.charTyped(characterEvent)
     }
 
     override fun isPauseScreen(): Boolean {

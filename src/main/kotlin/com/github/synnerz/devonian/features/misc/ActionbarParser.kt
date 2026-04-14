@@ -1,14 +1,16 @@
 package com.github.synnerz.devonian.features.misc
 
 import com.github.synnerz.devonian.Devonian
-import com.github.synnerz.devonian.api.ChatUtils
+import com.github.synnerz.devonian.api.Location
 import com.github.synnerz.devonian.api.Scheduler
-import com.github.synnerz.devonian.api.events.ActionbarEvent
+import com.github.synnerz.devonian.api.events.ModifyActionbarEvent
 import com.github.synnerz.devonian.api.events.RenderOverlayEvent
 import com.github.synnerz.devonian.api.events.WorldChangeEvent
 import com.github.synnerz.devonian.config.Config
 import com.github.synnerz.devonian.features.Feature
 import com.github.synnerz.devonian.hud.texthud.TextHudFeature
+import com.github.synnerz.devonian.utils.BasicState
+import net.minecraft.network.chat.Component
 
 object ActionbarParser : Feature(
     "actionbarParser",
@@ -16,6 +18,10 @@ object ActionbarParser : Feature(
     "This is a global toggle. None of the features below will work when this is disabled.",
     subcategory = "Actionbar",
 ) {
+    override fun createRequirements(): List<BasicState<Boolean>?> {
+        return super.createRequirements() + listOf(Location.stateInSkyblock)
+    }
+
     private val splitReg = "\\s{2,}".toRegex()
     // term laser makes it "§a7,952§a❈ Defense§a§l  T3!"
     private val cringe = listOf("§r", "§a§l", "§6")
@@ -25,7 +31,7 @@ object ActionbarParser : Feature(
     override fun initialize() {
         Stats.entries.forEach { it.initialize() }
 
-        on<ActionbarEvent> { event ->
+        on<ModifyActionbarEvent> { event ->
             val str = event.text.string
 
             val pieces = str.split(splitReg)
@@ -47,6 +53,8 @@ object ActionbarParser : Feature(
                     }
                     if (parsed == null) {
                         if (Devonian.isDev) println("ActionbarParser: unknown stat '$stat'")
+                        append(" ".repeat(5))
+                        append(stat)
                     } else {
                         parsed.updated = updateCount + 1
 
@@ -66,8 +74,7 @@ object ActionbarParser : Feature(
             updateCount++
 
             if (!shouldOverride) return@on
-            event.cancel()
-            ChatUtils.sendActionbar(override)
+            event.overrideValue = Component.literal(override)
         }
 
         on<RenderOverlayEvent> { event ->
@@ -79,6 +86,7 @@ object ActionbarParser : Feature(
         }
     }
 
+    private const val desc = "Requires 'Actionbar Parser' to be enabled."
     private val customTags = setOf("actionbar")
     private val hideTags = setOf<String>()
     enum class Stats(
@@ -90,11 +98,11 @@ object ActionbarParser : Feature(
         val startsWith: String? = null,
     ) {
         Health(
-            "❤",
             null,
+            listOf("❤", "▆", "▅", "▄", "▃", "▂", "▁"),
             object : TextHudFeature(
                 "customHealthHud",
-                "Allows you to move the health that appears in the actionbar (above your hotbar).",
+                "$desc Allows you to move the health that appears in the actionbar (above your hotbar).",
                 subcategory = "Actionbar",
                 searchTags = customTags,
             ) {
@@ -102,7 +110,7 @@ object ActionbarParser : Feature(
             },
             object : Feature(
                 "hideHealthActionbar",
-                "Hides the health that appears in the actionbar (above your hotbar).",
+                "$desc Hides the health that appears in the actionbar (above your hotbar).",
                 subcategory = "Actionbar",
                 searchTags = hideTags,
             ) {},
@@ -113,7 +121,7 @@ object ActionbarParser : Feature(
             null,
             object : TextHudFeature(
                 "customDefenseHud",
-                "Allows you to move the defense that appears in the actionbar (above your hotbar).",
+                "$desc Allows you to move the defense that appears in the actionbar (above your hotbar).",
                 subcategory = "Actionbar",
                 searchTags = customTags,
             ) {
@@ -121,7 +129,7 @@ object ActionbarParser : Feature(
             },
             object : Feature(
                 "hideDefenseActionbar",
-                "Hides the defense that appears in the actionbar (above your hotbar).",
+                "$desc Hides the defense that appears in the actionbar (above your hotbar).",
                 subcategory = "Actionbar",
                 searchTags = hideTags,
             ) {},
@@ -155,7 +163,7 @@ object ActionbarParser : Feature(
             listOf("✎", "ʬ", " Mana"),
             object : TextHudFeature(
                 "customManaHud",
-                "Allows you to move the mana that appears in the actionbar (above your hotbar).",
+                "$desc Allows you to move the mana that appears in the actionbar (above your hotbar).",
                 subcategory = "Actionbar",
                 searchTags = customTags,
             ) {
@@ -163,7 +171,7 @@ object ActionbarParser : Feature(
             },
             object : Feature(
                 "hideManaActionbar",
-                "Hides the mana that appears in the actionbar (above your hotbar).",
+                "$desc Hides the mana that appears in the actionbar (above your hotbar).",
                 subcategory = "Actionbar",
                 searchTags = hideTags,
             ) {},
@@ -178,7 +186,7 @@ object ActionbarParser : Feature(
             null,
             object : TextHudFeature(
                 "customManaUseHud",
-                "Allows you to move the mana used '18 Mana (Instant Transmission)' that appears in the actionbar (above your hotbar).",
+                "$desc Allows you to move the mana used '18 Mana (Instant Transmission)' that appears in the actionbar (above your hotbar).",
                 subcategory = "Actionbar",
                 searchTags = customTags,
             ) {
@@ -186,7 +194,7 @@ object ActionbarParser : Feature(
             },
             object : Feature(
                 "hideManaUseActionbar",
-                "Hides the mana used '18 Mana (Instant Transmission)' that appears in the actionbar (above your hotbar).",
+                "$desc Hides the mana used '18 Mana (Instant Transmission)' that appears in the actionbar (above your hotbar).",
                 subcategory = "Actionbar",
                 searchTags = hideTags,
             ) {},
@@ -197,7 +205,7 @@ object ActionbarParser : Feature(
             null,
             object : TextHudFeature(
                 "customTrueDefenseHud",
-                "Allows you to move the true defense that appears in the actionbar (above your hotbar).",
+                "$desc Allows you to move the true defense that appears in the actionbar (above your hotbar).",
                 subcategory = "Actionbar",
                 searchTags = customTags,
             ) {
@@ -205,7 +213,7 @@ object ActionbarParser : Feature(
             },
             object : Feature(
                 "hideTrueDefenseActionbar",
-                "Hides the true defense that appears in the actionbar (above your hotbar).",
+                "$desc Hides the true defense that appears in the actionbar (above your hotbar).",
                 subcategory = "Actionbar",
                 searchTags = hideTags,
             ) {},
@@ -239,7 +247,7 @@ object ActionbarParser : Feature(
             null,
             object : TextHudFeature(
                 "customStatXpHud",
-                "Allows you to move the stat xp '+163.7 Combat (141,560,940/0)' that appears in the actionbar (above your hotbar).",
+                "$desc Allows you to move the stat xp '+163.7 Combat (141,560,940/0)' that appears in the actionbar (above your hotbar).",
                 subcategory = "Actionbar",
                 searchTags = customTags,
             ) {
@@ -247,7 +255,7 @@ object ActionbarParser : Feature(
             },
             object : Feature(
                 "hideStatXpActionbar",
-                "Hides the stat xp '+163.7 Combat (141,560,940/0)' that appears in the actionbar (above your hotbar).",
+                "$desc Hides the stat xp '+163.7 Combat (141,560,940/0)' that appears in the actionbar (above your hotbar).",
                 subcategory = "Actionbar",
                 searchTags = hideTags,
             ) {},
@@ -258,28 +266,39 @@ object ActionbarParser : Feature(
             null,
             object : TextHudFeature(
                 "secretsHud",
-                "Allows you to move the secret count that appears in the actionbar (above your hotbar).",
+                "$desc Allows you to move the secret count that appears in the actionbar (above your hotbar).",
                 displayName = "Custom Secret Count Hud",
                 subcategory = "Actionbar",
                 searchTags = customTags,
             ) {
-                override fun getEditText(): List<String> = listOf("§70/4 Secrets")
+                override fun getEditText(): List<String> = listOf("§70&f/§a4")
             },
             object : Feature(
                 "hideSecretCountActionbar",
-                "Hides the secret count that appears in the actionbar (above your hotbar).",
+                "$desc Hides the secret count that appears in the actionbar (above your hotbar).",
                 subcategory = "Actionbar",
                 searchTags = hideTags,
             ) {},
         ) {
-            override fun modifyStringHud(str: String): String = str.dropLast(" Secrets".length)
+            override fun modifyStringHud(str: String): String {
+                val ss = str.dropLast(" Secrets".length)
+                val ( _, secret, total ) = "(\\d+)/(\\d+)".toRegex().find(ss.replace("§7", ""))?.groupValues ?: return ss
+
+                return "${colorForNumber(secret.toIntOrNull() ?: return ss, total.toIntOrNull() ?: return ss)}$secret&f/&a$total"
+            }
+
+            private fun colorForNumber(num: Int, max: Int) = when {
+                num >= max * 0.75 -> "§a"
+                num >= max * 0.50 -> "§e"
+                else -> "§7"
+            }
         },
         TermLaser(
             null,
             listOf("T1", "T2", "T3!"),
             object : TextHudFeature(
                 "customTermLaserHud",
-                "Allows you to move the term laser that appears in the actionbar (above your hotbar).",
+                "$desc Allows you to move the term laser that appears in the actionbar (above your hotbar).",
                 subcategory = "Actionbar",
                 searchTags = customTags,
             ) {
@@ -287,7 +306,7 @@ object ActionbarParser : Feature(
             },
             object : Feature(
                 "hideTermLaserActionbar",
-                "Hides the term laser that appears in the actionbar (above your hotbar).",
+                "$desc Hides the term laser that appears in the actionbar (above your hotbar).",
                 subcategory = "Actionbar",
                 searchTags = hideTags,
             ) {},
@@ -310,7 +329,7 @@ object ActionbarParser : Feature(
             null,
             object : TextHudFeature(
                 "customDrillFuelHud",
-                "Allows you to move the drill fuel that appears in the actionbar (above your hotbar).",
+                "$desc Allows you to move the drill fuel that appears in the actionbar (above your hotbar).",
                 subcategory = "Actionbar",
                 searchTags = customTags,
             ) {
@@ -318,7 +337,7 @@ object ActionbarParser : Feature(
             },
             object : Feature(
                 "hideDrillFuelActionbar",
-                "Hides the drill fuel that appears in the actionbar (above your hotbar).",
+                "$desc Hides the drill fuel that appears in the actionbar (above your hotbar).",
                 subcategory = "Actionbar",
                 searchTags = hideTags,
             ) {},
@@ -330,7 +349,7 @@ object ActionbarParser : Feature(
             listOf("ᝐ", "⁑", "⚶", "Ѫ", "҉"),
             object : TextHudFeature(
                 "customArmorStacksHud",
-                "Allows you to move the armor stacks (nether armor) that appears in the actionbar (above your hotbar).",
+                "$desc Allows you to move the armor stacks (nether armor) that appears in the actionbar (above your hotbar).",
                 subcategory = "Actionbar",
                 searchTags = customTags,
             ) {
@@ -338,7 +357,7 @@ object ActionbarParser : Feature(
             },
             object : Feature(
                 "hideArmorStacksActionbar",
-                "Hides the armor stacks (nether armor) that appears in the actionbar (above your hotbar).",
+                "$desc Hides the armor stacks (nether armor) that appears in the actionbar (above your hotbar).",
                 subcategory = "Actionbar",
                 searchTags = hideTags,
             ) {},
@@ -351,7 +370,7 @@ object ActionbarParser : Feature(
             null,
             object : TextHudFeature(
                 "customRiftTimeHud",
-                "Allows you to move the rift time that appears in the actionbar (above your hotbar).",
+                "$desc Allows you to move the rift time that appears in the actionbar (above your hotbar).",
                 subcategory = "Actionbar",
                 searchTags = customTags,
             ) {
@@ -359,7 +378,7 @@ object ActionbarParser : Feature(
             },
             object : Feature(
                 "hideRiftTimeActionbar",
-                "Hides the rift time that appears in the actionbar (above your hotbar).",
+                "$desc Hides the rift time that appears in the actionbar (above your hotbar).",
                 subcategory = "Actionbar",
                 searchTags = hideTags,
             ) {},
@@ -371,7 +390,7 @@ object ActionbarParser : Feature(
             null,
             object : TextHudFeature(
                 "customGeckoComboHud",
-                "Allows you to move the gecko combo that appears in the actionbar (above your hotbar).",
+                "$desc Allows you to move the gecko combo that appears in the actionbar (above your hotbar).",
                 subcategory = "Actionbar",
                 searchTags = customTags,
             ) {
@@ -379,7 +398,7 @@ object ActionbarParser : Feature(
             },
             object : Feature(
                 "hideGeckoComboActionbar",
-                "Hides the gecko combo that appears in the actionbar (above your hotbar).",
+                "$desc Hides the gecko combo that appears in the actionbar (above your hotbar).",
                 subcategory = "Actionbar",
                 searchTags = hideTags,
             ) {},
@@ -389,7 +408,7 @@ object ActionbarParser : Feature(
             null,
             object : TextHudFeature(
                 "customEssenceGainedHud",
-                "Allows you to move the essence gained that appears in the actionbar (above your hotbar).",
+                "$desc Allows you to move the essence gained that appears in the actionbar (above your hotbar).",
                 subcategory = "Actionbar",
                 searchTags = customTags,
             ) {
@@ -397,10 +416,92 @@ object ActionbarParser : Feature(
             },
             object : Feature(
                 "hideEssenceGainedActionbar",
-                "Hides the essence gained that appears in the actionbar (above your hotbar).",
+                "$desc Hides the essence gained that appears in the actionbar (above your hotbar).",
                 subcategory = "Actionbar",
                 searchTags = hideTags,
             ) {},
+        ),
+        RagAxeTimer(
+            null,
+            listOf("CASTING IN 3s", "CASTING IN 2s", "CASTING IN 1s", "CASTING", "CANCELLED"),
+            object : TextHudFeature(
+                "customRagAxeTimerHud",
+                "$desc Allows you to move the rag axe timer that appears in the actionbar (above your hotbar).",
+                subcategory = "Actionbar",
+                searchTags = customTags,
+            ) {
+                override fun getEditText(): List<String> = listOf("§a§lCASTING IN 3s")
+            },
+            object : Feature(
+                "hideRagAxeTimerActionbar",
+                "$desc Hides the rag axe timer that appears in the actionbar (above your hotbar).",
+                subcategory = "Actionbar",
+                searchTags = hideTags,
+            ) {},
+        ) {
+            override fun modifyStringHud(str: String): String =
+                if (str.endsWith("CANCELLED")) str
+                else "§a$str"
+            override fun modifyStringVanilla(str: String): String = "${modifyStringHud(str)}§r"
+        },
+        AuroraStaffRune(
+            null,
+            listOf("Defender", "Virtuoso", "Mediator"),
+            object : TextHudFeature(
+                "customAuroraStaffRuneHud",
+                "$desc Allows you to move the aurora staff rune that appears in the actionbar (above your hotbar).",
+                subcategory = "Actionbar",
+                searchTags = customTags,
+            ) {
+                override fun getEditText(): List<String> = listOf("§5§lVirtuoso")
+            },
+            object : Feature(
+                "hideAuroraStaffRuneActionbar",
+                "$desc Hides the aurora staff rune that appears in the actionbar (above your hotbar).",
+                subcategory = "Actionbar",
+                searchTags = hideTags,
+            ) {},
+        ) {
+            override fun modifyStringVanilla(str: String): String = "$str§r"
+        },
+        SoulEsoward(
+            "INVULNERABLE",
+            null,
+            object : TextHudFeature(
+                "customSoulEsowardHud",
+                "$desc Allows you to move the soul esoward's 'IMMUNITY' that appears in the actionbar (above your hotbar).",
+                subcategory = "Actionbar",
+                searchTags = customTags,
+            ) {
+                override fun getEditText(): List<String> = listOf("§9§lINVULNERABLE")
+            },
+            object : Feature(
+                "hideSoulEsowardActionbar",
+                "$desc Hides the soul esoward's 'IMMUNITY' that appears in the actionbar (above your hotbar).",
+                subcategory = "Actionbar",
+                searchTags = hideTags,
+            ) {},
+        ) {
+            override fun modifyStringVanilla(str: String): String = "$str§r"
+        },
+        BitsGained(
+            " Bits from Cookie Buff!",
+            null,
+            object : TextHudFeature(
+                "customBitsGainedHud",
+                "$desc Allows you to move the bits gained that appears in the actionbar (above your hotbar).",
+                subcategory = "Actionbar",
+                searchTags = customTags,
+            ) {
+                override fun getEditText(): List<String> = listOf("§9§lINVULNERABLE")
+            },
+            object : Feature(
+                "hideBitsGainedActionbar",
+                "$desc Hides the bits gained that appears in the actionbar (above your hotbar).",
+                subcategory = "Actionbar",
+                searchTags = hideTags,
+            ) {},
+            pad = "",
         );
 
         open fun initialize() {}

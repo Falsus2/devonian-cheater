@@ -1,6 +1,5 @@
 package com.github.synnerz.devonian.features.end
 
-import com.github.synnerz.devonian.api.Scheduler
 import com.github.synnerz.devonian.api.events.ChatEvent
 import com.github.synnerz.devonian.config.Categories
 import com.github.synnerz.devonian.features.Feature
@@ -18,7 +17,7 @@ object GolemStage5Sound : Feature(
     override fun initialize() {
         on<ChatEvent> { event ->
             event.matches(golemSpawnRegex) ?: return@on
-            Scheduler.scheduleTask { minecraft.player?.playSound(soundEvent, 1f, 1f) }
+            minecraft.player?.playSound(soundEvent, 1f, 1f)
         }
     }
 }

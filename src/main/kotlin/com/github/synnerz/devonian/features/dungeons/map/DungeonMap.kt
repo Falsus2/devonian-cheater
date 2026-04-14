@@ -61,6 +61,98 @@ object DungeonMap : HudFeature(
         displayName = "\"guys how do i change map font\"",
         subcategory = "Style",
     )
+    private val SETTING_DOC_STYLE = addButton(
+        {
+            SETTING_DOOR_SIZE.set(0.36)
+            SETTING_MARKER_SCALE.set(2.4)
+            SETTING_HEAD_SCALE.set(2.46)
+            SETTING_NAME_SCALE.set(2.4)
+            SETTING_TEXT_SIZE.set(1.27)
+            SETTING_MAP_BORDER.set(0.0)
+            SETTING_MAP_PADDING.set(0.0)
+            SETTING_ROOM_SIZE.set(0.8)
+            SETTING_ICON_SIZE.set(0.6) // not used
+            SETTING_HIDDEN_ROOM_DARKEN.set(0.7)
+            SETTING_TEXT_ALIGNMENT.set(5)
+            SETTING_ICON_ALIGNMENT.set(0) // not used
+            SETTING_TEXT_SHADOW.set(2)
+            SETTING_ICON_STYLE.set(0) // not used
+            SETTING_RENDER_NAMES_ONLY_LEAP.set(false)
+            SETTING_USE_PLAYER_HEADS.set(true)
+            SETTING_USE_MARKER_SELF.set(false)
+            SETTING_RENDER_ROOM_NAMES.set(false)
+            SETTING_RENDER_PUZZLE_ICON.set(false)
+            SETTING_RENDER_PUZZLE_NAME.set(true)
+            SETTING_NORMAL_DOOR_DYNAMIC.set(true)
+            SETTING_RENDER_FAIRY_CHECK.set(false)
+            SETTING_RENDER_ROOM_NAMES_NOT_EFB.set(false)
+            SETTING_DONT_RENDER_YELLOW_NAME.set(false)
+            SETTING_RENDER_NAMES.set(true)
+            SETTING_MC_TEXT.set(true)
+            SETTING_USE_CLASS_NAME.set(true)
+            SETTING_COLOR_NAME_BY_CLASS.set(true)
+            SETTING_COLOR_MARKER_BY_CLASS.set(true)
+            SETTING_RENDER_CHECKMARK.set(false)
+            SETTING_RENDER_SECRET_COUNT.set(true)
+            SETTING_COLOR_ROOM_TEXT.set(true)
+            SETTING_ROTATE.set(false)
+            SETTING_DONT_RENDER_CHECK_IF_NAME.set(false)
+            SETTING_DONT_RENDER_SECRET_1.set(false)
+            SETTING_CHECK_IF_GREEN.set(false)
+            SETTING_RENDER_CHECK_IF_0.set(true)
+            SETTING_MAP_BACKGROUND_COLOR.set(50462977)
+        },
+        "Set",
+        "Changes the majority of settings to fit a style that docilelm (aka doc) uses NOTE: room colors are not changed",
+        displayName = "Doc Style",
+        subcategory = "Presets"
+    )
+    private val SETTING_LEG_STYLE = addButton(
+        {
+            SETTING_DOOR_SIZE.set(0.4)
+            SETTING_MARKER_SCALE.set(2.2)
+            SETTING_HEAD_SCALE.set(2.5)
+            SETTING_NAME_SCALE.set(1.9)
+            SETTING_TEXT_SIZE.set(1.08)
+            SETTING_MAP_BORDER.set(0.0)
+            SETTING_MAP_PADDING.set(0.0)
+            SETTING_ROOM_SIZE.set(0.8)
+            SETTING_ICON_SIZE.set(0.4) // not used
+            SETTING_HIDDEN_ROOM_DARKEN.set(0.61)
+            SETTING_TEXT_ALIGNMENT.set(4)
+            SETTING_ICON_ALIGNMENT.set(0) // not used
+            SETTING_TEXT_SHADOW.set(2)
+            SETTING_ICON_STYLE.set(0) // not used
+            SETTING_RENDER_NAMES_ONLY_LEAP.set(true)
+            SETTING_USE_PLAYER_HEADS.set(true)
+            SETTING_USE_MARKER_SELF.set(true)
+            SETTING_RENDER_ROOM_NAMES.set(true)
+            SETTING_RENDER_PUZZLE_ICON.set(false)
+            SETTING_RENDER_PUZZLE_NAME.set(true)
+            SETTING_NORMAL_DOOR_DYNAMIC.set(false)
+            SETTING_RENDER_FAIRY_CHECK.set(false)
+            SETTING_RENDER_ROOM_NAMES_NOT_EFB.set(true)
+            SETTING_DONT_RENDER_YELLOW_NAME.set(false)
+            SETTING_RENDER_NAMES.set(true)
+            SETTING_MC_TEXT.set(false)
+            SETTING_USE_CLASS_NAME.set(true)
+            SETTING_COLOR_NAME_BY_CLASS.set(true)
+            SETTING_COLOR_MARKER_BY_CLASS.set(true)
+            SETTING_RENDER_CHECKMARK.set(false)
+            SETTING_RENDER_SECRET_COUNT.set(true)
+            SETTING_COLOR_ROOM_TEXT.set(true)
+            SETTING_ROTATE.set(false)
+            SETTING_DONT_RENDER_CHECK_IF_NAME.set(true)
+            SETTING_DONT_RENDER_SECRET_1.set(true)
+            SETTING_CHECK_IF_GREEN.set(false)
+            SETTING_RENDER_CHECK_IF_0.set(false)
+            SETTING_MAP_BACKGROUND_COLOR.set(772723641)
+        },
+        "Set",
+        "Changes the majority of settings to fit a style that legendary_jg (aka leg) uses NOTE: room colors are not changed",
+        displayName = "Leg Style",
+        subcategory = "Presets"
+    )
     private val SETTING_USE_PLAYER_HEADS = addSwitch(
         "playerHeads",
         false,
@@ -110,7 +202,7 @@ object DungeonMap : HudFeature(
         "Color Player Markers",
         subcategory = "Markers",
     )
-    private val SETTING_NAME_SCALE = addSlider(
+    private val SETTING_NAME_SCALE = addDecimalSlider(
         "nameScale",
         1.0,
         0.0, 10.0,
@@ -118,13 +210,21 @@ object DungeonMap : HudFeature(
         "Player Name Scale",
         subcategory = "Markers",
     )
-    private val SETTING_MARKER_SCALE = addSlider(
+    private val SETTING_MARKER_SCALE = addDecimalSlider(
         "markerScale",
         1.0,
         0.0, 10.0,
         "",
         "Marker Scale",
         subcategory = "Markers",
+    )
+    private val SETTING_HEAD_SCALE = addDecimalSlider(
+        "headScale",
+        2.5,
+        0.0, 10.0,
+        "",
+        "Head Scale",
+        subcategory = "Markers"
     )
     private val SETTING_PRESET_HYPIXEL_COLORS = addButton(
         {
@@ -423,6 +523,13 @@ object DungeonMap : HudFeature(
         "Don't Render 1 Secret Count",
         subcategory = "Behavior",
     )
+    private val SETTING_RENDER_CHECK_IF_0 = addSwitch(
+        "renderCheckIf0",
+        false,
+        "Renders a checkmark instead of nothing if the room secrets are 0",
+        "Render Checkmark If 0",
+        subcategory = "Behavior",
+    )
     private val SETTING_RENDER_PUZZLE_NAME = addSwitch(
         "renderPuzzleName",
         false,
@@ -587,6 +694,7 @@ object DungeonMap : HudFeature(
                     SETTING_CHECK_IF_GREEN.get(),
                     SETTING_RENDER_SECRET_COUNT.get(),
                     SETTING_DONT_RENDER_SECRET_1.get(),
+                    SETTING_RENDER_CHECK_IF_0.get(),
                     SETTING_RENDER_PUZZLE_NAME.get(),
                     SETTING_ICON_SIZE.get(),
                     DungeonMapRoomInfoAlignment.from(SETTING_ICON_ALIGNMENT.getCurrent()),
@@ -661,7 +769,7 @@ object DungeonMap : HudFeature(
                 )
             )
 
-            val pos = Dungeons.players.firstEntry()?.value?.getLerpedPosition()
+            val pos = Dungeons.selfPlayer.getLerpedPosition()
             if (pos != null) {
                 val px = MathUtils.rescale(
                     pos.x,
@@ -714,20 +822,20 @@ object DungeonMap : HudFeature(
                 compBounds.y, compBounds.y + compBounds.h
             ).toFloat()
 
-            var dxf = cos(-pos.r).toFloat() * SETTING_MARKER_SCALE.get().toFloat() * scale * 0.5f
-            var dyf = sin(-pos.r).toFloat() * SETTING_MARKER_SCALE.get().toFloat() * scale * 0.5f
-            var dxr = cos(-pos.r + PI / 2).toFloat() * SETTING_MARKER_SCALE.get().toFloat() * scale * 0.5f
-            var dyr = sin(-pos.r + PI / 2).toFloat() * SETTING_MARKER_SCALE.get().toFloat() * scale * 0.5f
+            val info = player.profileInfo
+            val isHead =
+                SETTING_USE_PLAYER_HEADS.get() && info != null &&
+                        (!SETTING_USE_MARKER_SELF.get() || i > 0)
+            var dxf = cos(-pos.r).toFloat() * (if (isHead) SETTING_HEAD_SCALE.get().toFloat() else SETTING_MARKER_SCALE.get().toFloat()) * scale * 0.5f
+            var dyf = sin(-pos.r).toFloat() * (if (isHead) SETTING_HEAD_SCALE.get().toFloat() else SETTING_MARKER_SCALE.get().toFloat()) * scale * 0.5f
+            var dxr = cos(-pos.r + PI / 2).toFloat() * (if (isHead) SETTING_HEAD_SCALE.get().toFloat() else SETTING_MARKER_SCALE.get().toFloat()) * scale * 0.5f
+            var dyr = sin(-pos.r + PI / 2).toFloat() * (if (isHead) SETTING_HEAD_SCALE.get().toFloat() else SETTING_MARKER_SCALE.get().toFloat()) * scale * 0.5f
             val u0: Float
             val v0: Float
             val u1: Float
             val v1: Float
             val maxDy: Float
             val textureView: GpuTextureView
-            val info = player.profileInfo
-            val isHead =
-                SETTING_USE_PLAYER_HEADS.get() && info != null &&
-                (!SETTING_USE_MARKER_SELF.get() || i > 0)
             if (isHead) {
                 dxf *= 4f
                 dyf *= 4f
@@ -767,7 +875,7 @@ object DungeonMap : HudFeature(
 
                 val hud = textHuds[i]
                 hud.x = px.toDouble()
-                hud.y = py - maxDy * SETTING_MARKER_SCALE.get().toFloat() - hud.getHeight() * 0.5
+                hud.y = py - maxDy * (if (isHead) SETTING_HEAD_SCALE.get().toFloat() else SETTING_MARKER_SCALE.get().toFloat()) - hud.getHeight() * 0.5
                 hud.shadow = Shadow.from(SETTING_TEXT_SHADOW.get())
                 hud.setLine("$nameFormat$text")
                 hud.scale = scale * 0.3f * SETTING_NAME_SCALE.get().toFloat()
@@ -791,6 +899,25 @@ object DungeonMap : HudFeature(
                     ctx.scissorStack.peek()
                 )
             )
+            if (isHead) {
+                ctx.guiRenderState.submitGuiElement(
+                    TexturedQuadRenderState(
+                        BufferedImageRenderer.pipeline,
+                        TextureSetup.singleTexture(textureView),
+                        Matrix3x2f(ctx.pose()),
+                        px + dxf - dxr, py + dyf - dyr,
+                        px - dxf - dxr, py - dyf - dyr,
+                        px + dxf + dxr, py + dyf + dyr,
+                        px - dxf + dxr, py - dyf + dyr,
+                        SKIN_HAT_U.toFloat() / SKIN_TEX_WIDTH, SKIN_HAT_V.toFloat() / SKIN_TEX_HEIGHT,
+                        SKIN_HAT_U.toFloat() / SKIN_TEX_WIDTH, (SKIN_HAT_V + SKIN_HAT_HEIGHT).toFloat() / SKIN_TEX_HEIGHT,
+                        (SKIN_HAT_U + SKIN_HAT_WIDTH).toFloat() / SKIN_TEX_WIDTH, SKIN_HAT_V.toFloat() / SKIN_TEX_HEIGHT,
+                        (SKIN_HAT_U + SKIN_HAT_WIDTH).toFloat() / SKIN_TEX_WIDTH, (SKIN_HAT_V + SKIN_HAT_HEIGHT).toFloat() / SKIN_TEX_HEIGHT,
+                        -1,
+                        ctx.scissorStack.peek()
+                    )
+                )
+            }
 
             if (SETTING_COLOR_MARKER_BY_CLASS.get() && player.role.color.alpha != 0) {
                 val u0: Float
@@ -851,8 +978,8 @@ object DungeonMap : HudFeature(
         mapRenderer.invalidate()
     }
 
-    val mcidMarkerAtlas = ResourceLocation.fromNamespaceAndPath("devonian", "dungeon_map_marker_atlas")!!
-    val markerAtlasUploader = BufferedImageUploader.fromResource("/assets/devonian/dungeons/map/markerAtlas.png")!!
+    val mcidMarkerAtlas = ResourceLocation.fromNamespaceAndPath("devonian", "dungeons/map/marker_atlas")!!
+    val markerAtlasUploader = BufferedImageUploader.fromResource("/assets/devonian/dungeons/map/marker_atlas.png")!!
         .register(mcidMarkerAtlas)
 
     val MARKER_SELF_U0: Float

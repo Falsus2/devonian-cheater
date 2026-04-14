@@ -1,5 +1,8 @@
 package com.github.synnerz.devonian.api
 
+import com.github.synnerz.devonian.api.events.EventBus
+import com.github.synnerz.devonian.api.events.TickEvent
+import com.github.synnerz.devonian.features.misc.chat.CompactChatComponent
 import com.github.synnerz.devonian.mixin.accessor.ChatComponentAccessor
 import net.fabricmc.fabric.impl.command.client.ClientCommandInternals
 import net.minecraft.client.GuiMessage
@@ -72,7 +75,7 @@ object ChatUtils {
 
         if (!removedLine) return
 
-        chatComponentAccessor.invokeRefresh()
+        refreshChat()
     }
 
     fun editLines(cb: (GuiMessage) -> Boolean, replaceWith: TextComponent) {
@@ -97,7 +100,7 @@ object ChatUtils {
 
         if (!editedLine) return
 
-        chatComponentAccessor.invokeRefresh()
+        refreshChat()
     }
 
     fun centerTextPadding(text: String): String {
@@ -130,4 +133,35 @@ object ChatUtils {
     }
 
     fun getMessageFromLine(line: GuiMessage.Line): GuiMessage? = lineCache[line]
+
+    fun deleteMessage(comp: Component, max: Int = 20) {
+        val iter = chatComponentAccessor.messages.listIterator()
+        var i = max
+
+        while (--i >= 0 && iter.hasNext()) {
+            val line = iter.next()
+            if (
+                line.content === comp ||
+                (line.content.siblings.lastOrNull()?.contents as? CompactChatComponent)?.orig === comp
+            ) {
+                iter.remove()
+                refreshChat()
+                break
+            }
+        }
+    }
+
+    private var needRefresh = 0
+
+    fun refreshChat() {
+        needRefresh++
+        if (needRefresh == 1) chatComponentAccessor.invokeRefresh()
+    }
+
+    fun initialize() {
+        EventBus.on<TickEvent> {
+            if (needRefresh > 1) chatComponentAccessor.invokeRefresh()
+            needRefresh = 0
+        }
+    }
 }

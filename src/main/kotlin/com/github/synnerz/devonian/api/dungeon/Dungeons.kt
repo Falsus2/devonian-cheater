@@ -11,6 +11,7 @@ import com.github.synnerz.devonian.features.dungeons.m7.M7Events
 import com.github.synnerz.devonian.utils.BasicState
 import com.github.synnerz.devonian.utils.State
 import com.github.synnerz.devonian.utils.StringUtils
+import net.minecraft.client.multiplayer.PlayerInfo
 import net.minecraft.core.component.DataComponents
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.network.protocol.game.ServerboundUseItemOnPacket
@@ -47,9 +48,20 @@ object Dungeons {
     private var wasInDungeons = false
     private val attemptGuessState = BasicState(false)
 
-    val players = linkedMapOf<String, DungeonPlayer>()
-    val playerClasses = ConcurrentHashMap<String, DungeonClass>()
-    val selfClass = BasicState(DungeonClass.Unknown)
+    var selfPlayer = Devonian.minecraft.let { mc ->
+        val prof = mc.gameProfile
+        return@let DungeonPlayer(
+            prof.name,
+            PlayerInfo(prof, false),
+            DungeonClass.Unknown,
+            0,
+            false,
+        )
+    }
+    private var scannedSelf = false
+    val players = linkedMapOf(selfPlayer.name to selfPlayer)
+    val playerClasses = ConcurrentHashMap(mapOf(selfPlayer.name to selfPlayer.role))
+    val selfClass = BasicState(selfPlayer.role)
     private var needReset = true
     private var worldId = 0
 
@@ -237,6 +249,14 @@ object Dungeons {
                         false
                     )
                 }
+                // nick
+                if (players.size > 1 && !scannedSelf) {
+                    players.remove(selfPlayer.name)
+                    playerClasses.remove(selfPlayer.name)
+                    player.profileInfo = selfPlayer.profileInfo
+                    selfPlayer = player
+                }
+                scannedSelf = true
 
                 if (role == "DEAD") player.isDead = true
                 else {
@@ -258,7 +278,7 @@ object Dungeons {
 
             // TODO: check when each player is being updated by the server
             // players.forEach { it.value.tick() }
-            players.firstEntry()?.value?.tick()
+            selfPlayer.tick()
 
             mc.level?.players()?.forEach {
                 val ping = mc.connection?.getPlayerInfo(it.uuid)?.latency ?: return@forEach
@@ -340,14 +360,10 @@ object Dungeons {
             }
 
             event.matches(disconnectRegex)?.let {
-                val id = worldId
-                Scheduler.scheduleTask {
-                    if (worldId != id) return@scheduleTask
-                    if (it[0] == Devonian.minecraft.gameProfile.name) wasInDungeons = true
-                    else players.remove(it[0])?.let { p ->
-                        players[it[0]] = p
-                        p.isDisconnected = true
-                    }
+                if (it[0] == Devonian.minecraft.gameProfile.name) wasInDungeons = true
+                else players.remove(it[0])?.let { p ->
+                    players[it[0]] = p
+                    p.isDisconnected = true
                 }
                 return@on
             }
@@ -388,10 +404,9 @@ object Dungeons {
                 if (type?.potion?.get() != Potions.HEALING) return@on
             }
 
-            val minecraft = Devonian.minecraft
-            val player = minecraft.player ?: return@on
+            val entity = event.entity
 
-            DungeonEvent.SecretPickup(player.x, player.y, player.z).post()
+            DungeonEvent.SecretPickup(entity.xo, entity.yo, entity.zo).post()
         }.setEnabled(Location.stateInArea("catacombs"))
 
         EventBus.on<PrePacketSentEvent> { event ->
@@ -424,7 +439,7 @@ object Dungeons {
             }
             if (!DungeonEvent.SecretClicked.SECRET_BLOCKS.contains("${registryName.namespace}:${registryName.path}"))
                 return@on
-            DungeonEvent.SecretClicked(pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble()).post()
+            DungeonEvent.SecretClicked(pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble(), isLever = registryName.path == "lever").post()
         }.setEnabled(Location.stateInArea("catacombs"))
 
         EventBus.on<SoundPlayEvent> { event ->
@@ -474,9 +489,22 @@ object Dungeons {
     private fun reset() {
         attemptGuessState.value = false
 
+        selfPlayer = Devonian.minecraft.let { mc ->
+            val prof = mc.gameProfile
+            return@let DungeonPlayer(
+                prof.name,
+                PlayerInfo(prof, false),
+                DungeonClass.Unknown,
+                0,
+                false,
+            )
+        }
+        scannedSelf = false
         players.clear()
+        players[selfPlayer.name] = selfPlayer
         playerClasses.clear()
-        selfClass.value = DungeonClass.Unknown
+        playerClasses[selfPlayer.name] = selfPlayer.role
+        selfClass.value = selfPlayer.role
         worldId++
 
         floor = FloorType.None

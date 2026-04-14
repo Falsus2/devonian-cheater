@@ -1,10 +1,13 @@
 package com.github.synnerz.devonian.hud
 
 import com.github.synnerz.devonian.Devonian
+import com.github.synnerz.devonian.api.events.EventBus
+import com.github.synnerz.devonian.api.events.RenderOverlayEvent
 import com.github.synnerz.devonian.config.Categories
 import com.github.synnerz.devonian.config.Config
 import com.github.synnerz.devonian.config.NullableHudData
 import com.github.synnerz.devonian.features.Feature
+import com.github.synnerz.devonian.features.HudManagerGrid
 import com.github.synnerz.devonian.features.HudManagerHider
 import com.github.synnerz.devonian.utils.BoundingBox
 import com.github.synnerz.devonian.utils.StringUtils.camelCaseToSentence
@@ -14,9 +17,7 @@ import com.github.synnerz.devonian.utils.render.Render2D.width
 import net.minecraft.client.gui.GuiGraphics
 import org.lwjgl.glfw.GLFW
 import java.awt.Color
-import kotlin.math.ceil
-import kotlin.math.sign
-import kotlin.math.withSign
+import kotlin.math.*
 
 abstract class HudFeature(
     configName: String,
@@ -52,17 +53,22 @@ abstract class HudFeature(
     var x = 10.0
     var y = 10.0
     var scale = 1f
+    var fromConfig = false
 
     init {
         HudManager.addHud(this)
+
+        EventBus.once<RenderOverlayEvent> {
+            if (!fromConfig) setDefaultValues()
+        }
     }
 
     open fun load() {
         val data = Config.getHud(legacyName)
 
-        data.x?.let { x = it }
-        data.y?.let { y = it }
-        data.scale?.let { scale = it }
+        data.x?.let { fromConfig = true; x = it }
+        data.y?.let { fromConfig = true; y = it }
+        data.scale?.let { fromConfig = true; scale = it }
     }
 
     open fun save() {
@@ -95,8 +101,13 @@ abstract class HudFeature(
     }
 
     open fun onMouseDrag(dx: Double, dy: Double) {
-        x = coerceX(x + dx)
-        y = coerceY(y + dy)
+        if (HudManagerGrid.isEnabled()) {
+            x = coerceX(snapGrid(HudManager.startDragX + HudManager.cumDragX))
+            y = coerceY(snapGrid(HudManager.startDragY + HudManager.cumDragY))
+        } else {
+            x = coerceX(x + dx)
+            y = coerceY(y + dy)
+        }
     }
 
     open fun onMouseClick(mx: Double, my: Double, mbtn: Int) {
@@ -128,7 +139,6 @@ abstract class HudFeature(
         if (HudManager.isEditing) return
 
         drawImpl(ctx)
-        if (dirty) onDirty()
     }
 
     open fun sampleDraw(ctx: GuiGraphics, mx: Int, my: Int, selected: Boolean) {
@@ -177,11 +187,19 @@ abstract class HudFeature(
         (isEnabled() || isInternal || !HudManagerHider.isEnabled()) &&
         (!isHidden || Devonian.isDev)
 
+    fun snapGrid(v: Double): Double = HudManager.gridSize * (v / HudManager.gridSize).roundToInt()
+
     open fun coerceX(v: Double): Double {
-        return v.coerceIn(MARGIN .. window.guiScaledWidth - MARGIN)
+        return max(MARGIN, min(window.guiScaledWidth - MARGIN, v))
     }
 
     open fun coerceY(v: Double): Double {
-        return v.coerceIn(MARGIN .. window.guiScaledHeight - MARGIN)
+        return max(MARGIN, min(window.guiScaledHeight - MARGIN, v))
+    }
+
+    open fun setDefaultValues() {
+        x = 10.0
+        y = 10.0
+        scale = 1f
     }
 }

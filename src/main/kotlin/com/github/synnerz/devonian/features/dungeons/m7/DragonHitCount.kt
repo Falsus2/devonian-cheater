@@ -24,9 +24,8 @@ import kotlin.math.min
 object DragonHitCount : Feature(
     "dragonHitCount",
     "tracks number of arrows you hit",
-    Categories.DUNGEONS,
+    Categories.M7,
     "catacombs",
-    subcategory = "M7",
     searchTags = setOf("arrow"),
 ) {
     override fun createRequirements(): List<BasicState<Boolean>?> {
@@ -85,8 +84,7 @@ object DragonHitCount : Feature(
 
     private val db = EnumSet.of(DungeonClass.Healer, DungeonClass.Tank, DungeonClass.Mage)
     private fun end() {
-        // dont conc mod please please please
-        val isDb = db.contains(Dungeons.players.firstEntry()?.value?.role)
+        val isDb = db.contains(Dungeons.selfPlayer.role)
 
         var endI = 0
         var sum = 0

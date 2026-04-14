@@ -68,7 +68,7 @@ public abstract class AbstractContainerScreenMixin {
                 if (player == null) break;
                 Inventory inv = player.getInventory();
                 Optional<Slot> other = menu.slots.stream().filter(v -> v.container == inv && v.getContainerSlot() == j).findAny();
-                if (other.isPresent()) event = new SwapItemEvent(slot, other.get());
+                if (other.isPresent()) event = new SwapItemEvent(slot, other.get(), that);
                 break;
             }
             case QUICK_CRAFT:
@@ -91,6 +91,7 @@ public abstract class AbstractContainerScreenMixin {
     private void devonian$drawSlots(AbstractContainerScreen instance, GuiGraphics guiGraphics, Slot slot, Operation<Void> original) {
         if (new RenderSlotEvent(slot, guiGraphics, instance).post()) return;
         original.call(instance, guiGraphics, slot);
+        new PostRenderSlotEvent(slot, guiGraphics, instance).post();
     }
 
     @Inject(

@@ -1,22 +1,23 @@
 package com.github.synnerz.devonian
 
-import com.github.synnerz.devonian.api.HypixelModApi
-import com.github.synnerz.devonian.api.Location
-import com.github.synnerz.devonian.api.Party
-import com.github.synnerz.devonian.api.SkyblockPrices
+import com.github.synnerz.devonian.api.*
 import com.github.synnerz.devonian.api.dungeon.Dungeons
+import com.github.synnerz.devonian.api.dungeon.Stages
 import com.github.synnerz.devonian.api.events.ChatEvent
 import com.github.synnerz.devonian.api.garden.GardenEvents
 import com.github.synnerz.devonian.commands.DevonianCommand
+import com.github.synnerz.devonian.config.Categories
 import com.github.synnerz.devonian.config.Config
+import com.github.synnerz.devonian.config.ConfigData
 import com.github.synnerz.devonian.config.TextConfig
 import com.github.synnerz.devonian.config.ui.talium.ConfigGui
 import com.github.synnerz.devonian.features.*
 import com.github.synnerz.devonian.features.bossbar.BossBarHealth
 import com.github.synnerz.devonian.features.chat.CommandAliases
-import com.github.synnerz.devonian.features.misc.chat.CompactChat
 import com.github.synnerz.devonian.features.chat.CopyChat
 import com.github.synnerz.devonian.features.debug.CopyItem
+import com.github.synnerz.devonian.features.debug.MousePositionLogger
+import com.github.synnerz.devonian.features.debug.MousePositionRenderer
 import com.github.synnerz.devonian.features.debug.WAILA
 import com.github.synnerz.devonian.features.debug.packetlogger.PacketLogger
 import com.github.synnerz.devonian.features.debug.renderers.DungeonRoomComponentRenderer
@@ -27,6 +28,7 @@ import com.github.synnerz.devonian.features.diana.DianaDropTracker
 import com.github.synnerz.devonian.features.diana.DianaMobTracker
 import com.github.synnerz.devonian.features.dungeons.*
 import com.github.synnerz.devonian.features.dungeons.clear.*
+import com.github.synnerz.devonian.features.dungeons.f7.*
 import com.github.synnerz.devonian.features.dungeons.m7.*
 import com.github.synnerz.devonian.features.dungeons.map.DungeonMap
 import com.github.synnerz.devonian.features.dungeons.solvers.*
@@ -41,7 +43,9 @@ import com.github.synnerz.devonian.features.slayers.BossSlainTime
 import com.github.synnerz.devonian.features.slayers.BossSpawnTime
 import com.github.synnerz.devonian.hud.HudManager
 import com.github.synnerz.devonian.hud.texthud.Alert
+import com.github.synnerz.devonian.utils.render.ChromaText
 import net.fabricmc.api.ClientModInitializer
+import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
 import net.minecraft.network.chat.Component
@@ -56,6 +60,7 @@ object Devonian : ClientModInitializer {
     private val logger = LoggerFactory.getLogger("devonian")
 
     val minecraft = Minecraft.getInstance()
+    val container = FabricLoader.getInstance().getModContainer("devonian").get()
     val isDev = setOf(
         UUID.fromString("21c82573-9d28-4d7b-957f-adf20938cd38"),
         UUID.fromString("819d8402-51eb-4c0c-bcf2-d070dcb82a93"),
@@ -93,9 +98,22 @@ object Devonian : ClientModInitializer {
         )
     }
 
+    // TODO: delete me
+    val SETTING_KEEP_189 = ConfigData.Switch(
+        "keep189",
+        false,
+        null,
+        "§4Warning: use at your own risk. Forcibly reenables 1.8.9 features (sc. crouch/swim) past the set expiration date (previously the 22nd).",
+        "Reenable 1.8.9 Features",
+        "Mod",
+    ).also {
+        Config.registerCategory(it, Categories.GLOBAL, "Mod")
+    }
+
     val features = mutableListOf<Feature>()
     private val featureInstances by lazy {
         mutableListOf(
+            CheckForUpdates,
             NoCursorReset,
             BoxStarMob,
             RemoveBlockBreakParticle,
@@ -325,9 +343,45 @@ object Devonian : ClientModInitializer {
             ChatEmotes,
             PartyCommands,
             MutePartySpam,
-            CheckForUpdates,
             Searchbar,
             PartyFinderCount,
+            HighlightTeammates,
+            LastBreathPullSound,
+            EnchantAbbreviation,
+            RareDungeonMobDropAlert,
+            CompactMelodyMessages,
+            CenturyCakeTimer,
+            ScoreTime,
+            HidePlayers,
+            RemoveSmokeParticle,
+            PartyFinderRightClick,
+            LeapCounter,
+            HideSheeps,
+            WatcherKillAlert,
+            HideHotbar,
+            HideHearts,
+            HideScoreboard,
+            HideExperience,
+            MelodyMessage,
+            TerracottaTimer,
+            RemoveTabHead,
+            ConfirmDisconnect,
+            DeathTickTimer,
+            SecretTickTimer,
+            TerminalDropKey,
+            SpringBootsProgress,
+            PeekChatKeybind,
+            ZoomKeybind,
+            BazaarOverlay,
+            CustomEnchantLore,
+            StackingEnchantProgressHud,
+            StackingEnchantProgress,
+            ArmorHexColor,
+            HudManagerGrid,
+            FixRidingCamera,
+            StarsStackSize,
+            FavoriteAbiphone,
+            WarpCooldown,
 
             // Debug
             CopyItem,
@@ -335,6 +389,8 @@ object Devonian : ClientModInitializer {
             PacketLogger,
             DungeonRoomComponentRenderer,
             WAILA,
+            MousePositionLogger,
+            MousePositionRenderer,
         )
     }
 
@@ -351,15 +407,17 @@ object Devonian : ClientModInitializer {
             } | $GIT_COMMIT_MESSAGE"
         )
         featureInstances.forEach(Feature::preinitialize)
+        ChromaText.initialize()
         featureInstances.forEach(Feature::initialize)
-        ConfigGui.initialize()
-        HudManager.initialize()
         KeyShortcuts.initialize()
         CommandAliases.initialize()
-        RefillGFSCommands.initialize()
         CancelMessages.initialize()
         TitleMessages.initialize()
+        ConfigGui.initialize()
+        HudManager.initialize()
+        RefillGFSCommands.initialize()
         LogSearch.initialize()
+        WorldUtils.initialize()
         Config.onAfterLoad {
             featureInstances.forEach { feature ->
                 Config.getConfig<Boolean>(feature.configName)?.let {
@@ -377,6 +435,8 @@ object Devonian : ClientModInitializer {
         GardenEvents.initialize()
         HypixelModApi.initialize()
         Party.initialize()
+        Stages.initialize()
+        ChatUtils.initialize()
 
         DevonianCommand.command.subcommand("sim") { _, args ->
             val msg = args.joinToString(" ") { it.toString() }

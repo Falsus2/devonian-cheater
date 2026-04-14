@@ -14,8 +14,6 @@ import com.github.synnerz.devonian.config.Categories
 import com.github.synnerz.devonian.features.Feature
 import com.github.synnerz.devonian.utils.BasicState
 import com.github.synnerz.devonian.utils.render.Render3DImmediate
-import kotlinx.atomicfu.atomic
-import kotlinx.atomicfu.update
 import java.awt.Color
 import java.util.*
 import kotlin.math.min
@@ -88,6 +86,12 @@ object BoxDoors : Feature(
         "Line width of the box outline of the door",
         "Door Line Width",
     )
+    private val SETTING_DOOR_FILL_PHASE = addSwitch(
+        "fillPhase",
+        false,
+        "",
+        "Door Fill Phase",
+    )
     private val SETTING_RENDER_HIDDEN_DOORS = addSwitch(
         "renderUnknownDoors",
         false,
@@ -97,8 +101,8 @@ object BoxDoors : Feature(
         cheeto = true,
     )
 
-    private val witherKeys = atomic(0)
-    private val bloodKey = atomic(false)
+    private var witherKeys = 0
+    private var bloodKey = false
 
     private val witherKeyRegex = "^.+?(\\w+) has obtained Wither Key!$".toRegex()
     private val bloodKeyRegex = "^.+?(\\w+) has obtained Blood Key!$".toRegex()
@@ -108,26 +112,26 @@ object BoxDoors : Feature(
         on<ChatEvent> { event ->
             var b = true
             when (event.message) {
-                "A Wither Key was picked up!" -> witherKeys.incrementAndGet()
-                "A Blood Key was picked up!" -> bloodKey.value = true
-                "The BLOOD DOOR has been opened!" -> bloodKey.value = false
+                "A Wither Key was picked up!" -> witherKeys++
+                "A Blood Key was picked up!" -> bloodKey = true
+                "The BLOOD DOOR has been opened!" -> bloodKey = false
                 else -> b = false
             }
             if (b) return@on
 
             var match = event.matches(witherKeyRegex)
             if (match != null) {
-                witherKeys.incrementAndGet()
+                witherKeys++
                 return@on
             }
             match = event.matches(bloodKeyRegex)
             if (match != null) {
-                bloodKey.value = true
+                bloodKey = true
                 return@on
             }
             match = event.matches(witherDoorRegex)
             if (match != null) {
-                witherKeys.update { min(it - 1, 0) }
+                witherKeys = min(witherKeys - 1, 0)
                 return@on
             }
         }
@@ -139,12 +143,12 @@ object BoxDoors : Feature(
                     DoorTypes.NORMAL,
                     DoorTypes.ENTRANCE
                         -> {
-                        if (it.rooms.any { it.type == RoomTypes.FAIRY && !it.explored }) witherKeys.value > 0
+                        if (it.rooms.any { it.type == RoomTypes.FAIRY && !it.explored }) witherKeys > 0
                         else return@forEach
                     }
 
-                    DoorTypes.WITHER -> witherKeys.value > 0
-                    DoorTypes.BLOOD -> bloodKey.value
+                    DoorTypes.WITHER -> witherKeys > 0
+                    DoorTypes.BLOOD -> bloodKey
                 }
 
                 if (it.opened && !it.holyShitFairyDoorPleaseStopFlashingSobs) return@forEach
@@ -153,7 +157,7 @@ object BoxDoors : Feature(
 
                 val colorWire: Color
                 val colorFill: Color
-                if (hasKey && it.rooms.any { room -> room == DungeonScanner.currentRoom }) {
+                if (hasKey && it.rooms.any { room -> room === DungeonScanner.currentRoom }) {
                     colorWire = SETTING_DOOR_KEY_WIRE_COLOR.getColor()
                     colorFill = SETTING_DOOR_KEY_FILL_COLOR.getColor()
                 } else {
@@ -203,7 +207,7 @@ object BoxDoors : Feature(
             comp.wx + 0.5, 69.0, comp.wz + 0.5,
             3.0, 4.0,
             fill,
-            false,
+            SETTING_DOOR_FILL_PHASE.get(),
             centered = true,
         )
     }
@@ -221,7 +225,7 @@ object BoxDoors : Feature(
     }
 
     override fun onWorldChange(event: WorldChangeEvent) {
-        witherKeys.value = 0
-        bloodKey.value = false
+        witherKeys = 0
+        bloodKey = false
     }
 }

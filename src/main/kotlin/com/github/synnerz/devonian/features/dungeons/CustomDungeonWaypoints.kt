@@ -6,6 +6,7 @@ import com.github.synnerz.devonian.api.dungeon.DungeonEvent
 import com.github.synnerz.devonian.api.dungeon.DungeonRoom
 import com.github.synnerz.devonian.api.dungeon.DungeonScanner
 import com.github.synnerz.devonian.api.dungeon.Dungeons
+import com.github.synnerz.devonian.api.dungeon.mapEnums.CheckmarkTypes
 import com.github.synnerz.devonian.api.events.RenderWorldEvent
 import com.github.synnerz.devonian.api.events.UseItemOnEvent
 import com.github.synnerz.devonian.api.events.WorldChangeEvent
@@ -33,9 +34,9 @@ import kotlin.math.abs
 object CustomDungeonWaypoints : Feature(
     "customDungeonWaypoints",
     "Enables custom dungeon waypoints do /dv cdw help or /dv dwc help.",
-    Categories.DUNGEONS,
+    Categories.DUNGEON_WAYPOINTS,
     "catacombs",
-    subcategory = "Highlights",
+    subcategory = "Custom",
 ) {
     private val SETTING_REMOVE_ON_COLLECT = addSwitch(
         "removeOnCollect",
@@ -74,6 +75,12 @@ object CustomDungeonWaypoints : Feature(
         "Whether waypoints should render their text (not: if ordered ethers is enabled it will override this).",
         "CDW Render Text",
     )
+    private val SETTING_REMOVE_ON_DONE = addSwitch(
+        "removeOnDone",
+        false,
+        "Removes all the waypoints of the current room if its Green Check Marked",
+        "CDW Remove On Done"
+    )
     private const val KEY = "currentDungeonProfile"
     private const val BOSS_ID = 1000 // 1000 + floor number for each roomId that is boss
     private val waypointData = object : PersistentJsonClass<MutableList<WaypointProfile>>(
@@ -85,6 +92,7 @@ object CustomDungeonWaypoints : Feature(
         }
     }
     private var editMode = false
+    private val clearedRooms = mutableListOf<Int>()
     private var currentProfile = "default"
     private var currentRoom: Int? = null
     private var currentParent: ParentWaypoint? = null
@@ -153,7 +161,9 @@ object CustomDungeonWaypoints : Feature(
         ETHERWARPPEARL,
         DOUBLEPEARL,
         TEXT,
-        MINE;
+        MINE,
+        LEVER(Block.column(7.2, 0.0, 7.2)),
+        SUPERBOOM;
 
         companion object {
             fun byName(name: String) =
@@ -165,7 +175,7 @@ object CustomDungeonWaypoints : Feature(
         Config.set(KEY, "default")
 
         waypointData.load()
-        if (waypointData.data?.isEmpty() != false) waypointData.onLoadDefault()
+        if (waypointData.data.isNullOrEmpty()) waypointData.onLoadDefault()
 
         Config.onAfterLoad {
             currentProfile = Config.get<String>(KEY) ?: "default"
@@ -220,6 +230,7 @@ object CustomDungeonWaypoints : Feature(
         on<DungeonEvent.RoomEnter> { event ->
             waypointData.data!!.forEach { it.onRoomEnter(event.room) }
             currentRoom = event.room.roomID
+            if (currentRoom == null) return@on
             currentParent = waypointData.data!!
                 .find { it.name == currentProfile.lowercase() }?.parents?.find { it.id == currentRoom }
                 ?: ParentWaypoint(currentRoom!!, mutableListOf())
@@ -237,6 +248,7 @@ object CustomDungeonWaypoints : Feature(
 
         on<RenderWorldEvent> { event ->
             if (Dungeons.inBoss.value && currentRoom != null && currentRoom!! < BOSS_ID) return@on
+            if (SETTING_REMOVE_ON_DONE.get() && clearedRooms.contains(currentRoom)) return@on
 
             currentParent?.waypoints?.forEach {
                 if (SETTING_REMOVE_ON_COLLECT.get() && it.clicked) return@forEach
@@ -253,6 +265,18 @@ object CustomDungeonWaypoints : Feature(
                     WaypointType.DOUBLEPEARL -> Color(249, 117, 0)
                     WaypointType.TEXT -> Color(0, 0, 0, 0)
                     WaypointType.MINE -> Color(230, 250, 50, 255)
+                    WaypointType.LEVER -> Color(0, 150, 255, 255)
+                    WaypointType.SUPERBOOM -> Color(255, 0, 0, 255)
+                }
+
+                if (it.type != WaypointType.TEXT) {
+                    Render3DImmediate.renderWireframeShape(
+                        it.type.shape,
+                        pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble(),
+                        color,
+                        phase = SETTING_PHASE_MODE.get(),
+                        lineWidth = SETTING_LINE_WIDTH.get()
+                    )
                 }
 
                 if (it.text != null && SETTING_RENDER_TEXT.get()) {
@@ -262,7 +286,8 @@ object CustomDungeonWaypoints : Feature(
                         2f,
                         phase = SETTING_TEXT_PHASE_MODE.get()
                     )
-                } else if (it.type == WaypointType.ETHERWARP && SETTING_ORDERED_ETHERS.get()) {
+                }
+                else if (it.type == WaypointType.ETHERWARP && SETTING_ORDERED_ETHERS.get()) {
                     // TODO: make more efficient
                     val idx = currentParent!!.waypoints.filter { f -> f.type == WaypointType.ETHERWARP }.indexOf(it)
                     if (idx != -1) {
@@ -274,15 +299,6 @@ object CustomDungeonWaypoints : Feature(
                         )
                     }
                 }
-                if (it.type == WaypointType.TEXT) return@forEach
-
-                Render3DImmediate.renderWireframeShape(
-                    it.type.shape,
-                    pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble(),
-                    color,
-                    phase = SETTING_PHASE_MODE.get(),
-                    lineWidth = SETTING_LINE_WIDTH.get()
-                )
             }
         }
 
@@ -364,10 +380,16 @@ object CustomDungeonWaypoints : Feature(
         on<DungeonEvent.SecretClicked> { event -> onSecret(event.x, event.y, event.z, 0) }
         on<DungeonEvent.SecretBat> { event -> onSecret(event.x, event.y, event.z, 1) }
         on<DungeonEvent.SecretPickup> { event -> onSecret(event.x, event.y, event.z, 2) }
+
+        on<DungeonEvent.RoomUpdateEvent> { event ->
+            if (event.previousCheck != CheckmarkTypes.WHITE || event.currentCheck != CheckmarkTypes.GREEN) return@on
+            event.room.roomID?.let { clearedRooms.add(it) }
+        }
     }
 
     override fun onWorldChange(event: WorldChangeEvent) {
         waypointData.data!!.forEach { it.reset() }
+        clearedRooms.clear()
     }
 
     private fun onCommand(ctx: CommandContext<FabricClientCommandSource>, args: List<Any>): Int {
@@ -459,7 +481,7 @@ object CustomDungeonWaypoints : Feature(
 
             "switch" -> {
                 val waypointType = args.getOrNull(1) as? String?
-                if (!waypointType.isNullOrEmpty()) {
+                if (!waypointType.isNullOrEmpty() && waypointType != "back") {
                     val enum = WaypointType.byName(waypointType)
                     if (enum == null) {
                         ChatUtils.sendMessage("&cCDW Waypoint Type with name \"$waypointType\" does not exist", true)
@@ -469,8 +491,9 @@ object CustomDungeonWaypoints : Feature(
                     ChatUtils.sendMessage("&bCDW Set current waypoint type to &a$currentWaypointType", true)
                     return 1
                 }
-                var nextIdx = currentWaypointType.ordinal + 1
+                var nextIdx = currentWaypointType.ordinal + if (waypointType == "back") -1 else 1
                 val entries = WaypointType.entries.toTypedArray()
+                if (nextIdx < 0) nextIdx = entries.size - 1
                 if (nextIdx > entries.size - 1) nextIdx = 0
 
                 currentWaypointType = entries[nextIdx]

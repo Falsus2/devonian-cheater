@@ -19,9 +19,8 @@ import kotlin.math.abs
 object DungeonWaypoints : Feature(
     "dungeonWaypoints",
     "Highlights chest/items/bat spots where they would spawn at.",
-    Categories.DUNGEONS,
+    Categories.DUNGEON_WAYPOINTS,
     "catacombs",
-    subcategory = "Highlights",
     searchTags = setOf("secrets"),
 ) {
     override fun createRequirements(): List<BasicState<Boolean>?> {
@@ -33,6 +32,13 @@ object DungeonWaypoints : Feature(
         false,
         "Whether to display a text at the location of the waypoint.",
         "Dungeon Waypoints Text",
+    )
+    private val SETTING_LINE_WIDTH = addSlider(
+        "lineWidth",
+        2.0,
+        0.0, 10.0,
+        "",
+        "Dungeon Waypoints Line Width",
     )
     private val SETTING_CHEST_OUTLINE = addColorPicker(
         "chestOutline",
@@ -94,7 +100,7 @@ object DungeonWaypoints : Feature(
         "The color of the highlight filled for redstone key waypoints.",
         "Dungeon Waypoints Redstone Filled",
     )
-    private val waypointsData = Gson().fromJson(
+    val waypointsData = Gson().fromJson(
         this::class.java.getResourceAsStream("/assets/devonian/dungeons/DungeonWaypoints.json")
             ?.bufferedReader()
             .use { it?.readText() },
@@ -182,9 +188,7 @@ object DungeonWaypoints : Feature(
         on<ChatEvent> { event ->
             when (event.message) {
                 "You found a Secret Redstone Key!" -> {
-                    Scheduler.scheduleTask {
-                        getWaypoints()?.get(WaypointType.REDSTONE)?.clear()
-                    }
+                    getWaypoints()?.get(WaypointType.REDSTONE)?.clear()
                 }
 
                 "That chest is locked!" -> {
@@ -194,10 +198,8 @@ object DungeonWaypoints : Feature(
 
                     readdLockCD = t + 11
 
-                    Scheduler.scheduleTask {
-                        lastChestOp = null
-                        op.first.add(op.second)
-                    }
+                    lastChestOp = null
+                    op.first.add(op.second)
                 }
             }
         }
@@ -273,7 +275,8 @@ object DungeonWaypoints : Feature(
                         pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble(),
                         1.0, 1.0,
                         outlineColor,
-                        phase = true
+                        phase = true,
+                        lineWidth = SETTING_LINE_WIDTH.get(),
                     )
                     Render3DImmediate.renderFilledBox(
                         pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble(),

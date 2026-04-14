@@ -58,13 +58,13 @@ abstract class TextHudFeature(
     override fun load() {
         val data = Config.getHud(legacyName)
 
-        data.x?.let { x = it }
-        data.y?.let { y = it }
-        data.scale?.let { scale = it }
-        data.anchor?.let { anchor = Anchor.from(it) }
-        data.align?.let { align = Align.from(it) }
-        data.shadow?.let { shadow = Shadow.from(it) }
-        data.backdrop?.let { backdrop = Backdrop.from(it) }
+        data.x?.let { fromConfig = true; x = it }
+        data.y?.let { fromConfig = true; y = it }
+        data.scale?.let { fromConfig = true; scale = it }
+        data.anchor?.let { fromConfig = true; anchor = Anchor.from(it) }
+        data.align?.let { fromConfig = true; align = Align.from(it) }
+        data.shadow?.let { fromConfig = true; shadow = Shadow.from(it) }
+        data.backdrop?.let { fromConfig = true; backdrop = Backdrop.from(it) }
     }
 
     override fun save() {
@@ -118,11 +118,12 @@ abstract class TextHudFeature(
     }
 
     override fun coerceX(v: Double): Double {
-        if (!dirty && !isEditing) return super.coerceX(v)
+        if (!isEditing) return super.coerceX(v)
 
-        val w = if (dirty) getEditText().maxOf { it.width() }.toDouble() else getBounds().w
+        val editText = if (dirty) getEditText() else emptyList()
+        val w = if (dirty && editText.isNotEmpty()) editText.maxOf { it.width() }.toDouble() else getBounds().w
         val ax = when (anchor) {
-            Anchor.NW, Anchor.SW -> MARGIN
+            Anchor.NW, Anchor.SW -> 0.0
             Anchor.Center -> w * 0.5
             Anchor.NE, Anchor.SE -> w
         }
@@ -134,11 +135,12 @@ abstract class TextHudFeature(
     }
 
     override fun coerceY(v: Double): Double {
-        if (!dirty && !isEditing) return super.coerceY(v)
+        if (!isEditing) return super.coerceY(v)
 
-        val h = if (dirty) getEditText().maxOf { it.height() }.toDouble() else getBounds().h
+        val editText = if (dirty) getEditText() else emptyList()
+        val h = if (dirty && editText.isNotEmpty()) editText.maxOf { it.height() }.toDouble() else getBounds().h
         val ay = when (anchor) {
-            Anchor.NW, Anchor.NE -> MARGIN
+            Anchor.NW, Anchor.NE -> 0.0
             Anchor.Center -> h * 0.5
             Anchor.SW, Anchor.SE -> h
         }
@@ -147,5 +149,13 @@ abstract class TextHudFeature(
             MARGIN + ay,
             window.guiScaledHeight - MARGIN - (h - ay)
         )
+    }
+
+    override fun setDefaultValues() {
+        super.setDefaultValues()
+        anchor = Anchor.NW
+        align = Align.Left
+        shadow = Shadow.Drop
+        backdrop = Backdrop.None
     }
 }

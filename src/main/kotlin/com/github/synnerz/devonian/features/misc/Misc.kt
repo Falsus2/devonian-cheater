@@ -23,6 +23,7 @@ object RemoveChatLimit : Feature("removeChatLimit", subcategory = "Chat") {
     )
 }
 object RemoveTabPing : Feature("removeTabPing", subcategory = "Hiders")
+object RemoveTabHead : Feature("removeTabUselessHeads", "Removes the gray heads that hypixel sets in tablist", subcategory = "Hiders")
 object DisableAttachedArrows : Feature("disableAttachedArrows", subcategory = "Hiders")
 object DisableVignette : Feature("disableVignette", subcategory = "Hiders")
 object DisableWaterOverlay : Feature("disableWaterOverlay", subcategory = "Hiders")
@@ -88,4 +89,42 @@ object HideUselessBossBar : Feature(
     "hideUselessBossBar",
     "",
     subcategory = "Hiders",
+)
+object HideHotbar : Feature(
+    "hideHotbar",
+    "Stops your hotbar from rendering",
+    subcategory = "Hiders"
+)
+object HideHearts : Feature(
+    "hideHearts",
+    "Does not render your hearts",
+    subcategory = "Hiders"
+)
+object HideScoreboard : Feature(
+    "hideScoreboard",
+    "Does not render your scoreboard",
+    subcategory = "Hiders"
+)
+object HideExperience : Feature(
+    "hideExperience",
+    "Does not render the experience bar and level",
+    subcategory = "Hiders"
+)
+object ConfirmDisconnect : Feature(
+    "confirmDisconnect",
+    "Allows you to set a time threshold of when your disconnect click should register rather than instantly disconnecting",
+    subcategory = "Tweaks"
+) {
+    val SETTING_THRESHOLD = addSlider(
+        "threshold",
+        150.0,
+        0.0, 1000.0,
+        "The threshold time",
+        "ConfirmDisconnect Threshold"
+    )
+}
+object FixRidingCamera : Feature(
+    "fixRidingCamera",
+    "Fixes MC-259512 (camera lags when riding something). (only visual)",
+    subcategory = "Tweaks",
 )

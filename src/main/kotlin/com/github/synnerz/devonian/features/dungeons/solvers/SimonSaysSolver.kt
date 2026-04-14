@@ -20,10 +20,10 @@ import java.util.concurrent.CopyOnWriteArrayList
 object SimonSaysSolver : Feature(
     "simonSaysSolver",
     "Highlights the correct buttons to press.",
-    Categories.DUNGEONS,
+    Categories.F7,
     "catacombs",
-    subcategory = "F7",
     searchTags = setOf("device"),
+    subcategory = "Solvers",
 ) {
     override fun createRequirements(): List<BasicState<Boolean>?> {
         return super.createRequirements() + listOf(Stages.S1.isActiveState)
@@ -154,7 +154,10 @@ object SimonSaysSolver : Feature(
                 is ClientboundSectionBlocksUpdatePacket -> {
                     var pop = 16
                     packet.runUpdates { pos, state ->
-                        if (state.isAir && pos.x == 110 && isValidButtonLocation(pos) && --pop == 0) solution.clear()
+                        if (state.isAir && pos.x == 110 && isValidButtonLocation(pos) && --pop == 0) {
+                            solution.clear()
+                            startClicks = 0
+                        }
                     }
                     packet.runUpdates { pos, state ->
                         if (state.block == Blocks.SEA_LANTERN) onSeaLantern(pos)
@@ -199,7 +202,10 @@ object SimonSaysSolver : Feature(
         on<BlockInteractEvent> { event ->
             val pos = event.pos
 
-            if (pos.x != 110) return@on
+            if (pos.x != 110) {
+                startClicks = 0
+                return@on
+            }
             wasStartButtonLast = pos.y == 121 && pos.z == 91
 
             if (wasStartButtonLast && SETTING_BLOCK_START_CLICK.get()) {

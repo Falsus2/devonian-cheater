@@ -4,19 +4,18 @@ import com.github.synnerz.devonian.api.Location
 import com.github.synnerz.devonian.api.events.ChatEvent
 import com.github.synnerz.devonian.api.events.Event
 import com.github.synnerz.devonian.api.events.EventBus
-import com.github.synnerz.devonian.api.events.Threaded
 
 object GardenEvents {
     private const val OVERCLOCKER_3000 = "Overclocker 3000"
     private val pestDropRegex = "^You received (\\d+)x ([\\w ]+) for killing an? ([\\w ]+)!$".toRegex()
     private val pestRareDropRegex = "^RARE DROP! (?:(\\d+)x )?([\\w ]+) \\(\\+[\\d,]+☘\\)\$".toRegex()
 
-    @Threaded class PestKill(val name: String) : Event()
-    @Threaded class PestDrop(
+    class PestKill(val name: String) : Event
+    class PestDrop(
         val name: String,
         val amount: Int,
         val isRare: Boolean = false,
-    ) : Event()
+    ) : Event
 
     fun initialize() {
         EventBus.on<ChatEvent> { event ->

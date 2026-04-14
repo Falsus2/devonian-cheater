@@ -8,6 +8,7 @@ import com.github.synnerz.talium.components.UITextInput
 import kotlinx.atomicfu.atomic
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
+import org.lwjgl.glfw.GLFW
 import java.awt.Color
 
 object Searchbar : HudFeature(
@@ -38,7 +39,9 @@ object Searchbar : HudFeature(
         SETTING_BACKGROUND_COLOR.onChange {
             setColor(Color(it, true))
         }
-        onKeyType { onKeyType() }
+        onCharType {
+            onKeyType()
+        }
         onResize { _, _ -> onResize() }
     }
     private val highlightItems = atomic(intArrayOf())
@@ -99,9 +102,20 @@ object Searchbar : HudFeature(
 
         on<GuiKeyDownEvent> { event ->
             if (event.screen !is AbstractContainerScreen<*>) return@on
+            if ((event.event.modifiers and 2) != 0 && event.key == GLFW.GLFW_KEY_F)
+                input.focused = true
             if (!input.focused) return@on
 
             input.handleKeyInput(event.key, event.scanCode)
+            event.cancel()
+        }
+
+        on<GuiCharTypeEvent> { event ->
+            val screen = minecraft.screen ?: return@on
+            if (screen !is AbstractContainerScreen<*>) return@on
+            if (!input.focused) return@on
+
+            input.handleCharType(event.codepoint, event.str, event.event.modifiers)
             event.cancel()
         }
 

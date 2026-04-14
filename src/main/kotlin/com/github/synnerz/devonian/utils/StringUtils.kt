@@ -8,6 +8,8 @@ import net.minecraft.network.chat.Style
 import net.minecraft.network.chat.TextColor
 import java.text.NumberFormat
 import java.util.*
+import kotlin.math.max
+import kotlin.math.min
 
 object StringUtils {
     private val removeCodesRegex = "[\\u00a7&][0-9a-fk-or]".toRegex(RegexOption.IGNORE_CASE)
@@ -88,7 +90,7 @@ object StringUtils {
     fun colorForNumber(num: Int, max: Int) = colorForNumber(num.toDouble(), max.toDouble())
     fun colorForNumber(num: Long, max: Long) = colorForNumber(num.toDouble(), max.toDouble())
 
-    private fun parseStyle(style: Style): String = buildString {
+    fun parseStyle(style: Style): String = buildString {
         append("§r")
 
         style.color?.let(colorToFormat::get)?.run(::append)
@@ -173,28 +175,45 @@ object StringUtils {
         }
     }
 
-    // "1h 2m 13.42s"
-    fun formatTime(time: Long, decimals: Int): String {
+    // "1h 02m 13.42s"
+    fun formatTime(time: Long, decimals: Int, maxUnits: Int = 4): String {
         if (time < 0L) return '-' + formatTime(-time, decimals)
         val ms = time % 1000
         var t = time / 1000
         val s = t % 60
         t /= 60
         val m = t % 60
-        val h = t / 60
+        t /= 60
+        val h = t % 24
+        val d = t / 24
+        var i = maxUnits
 
         return buildString {
-            if (h > 0) {
-                append("${h}h ")
+            if (d > 0) {
+                append("${d}d ")
+                if (--i <= 0) return@buildString
+                append("%02dh ".format(h))
+                if (--i <= 0) return@buildString
                 append("%02dm ".format(m))
+                if (--i <= 0) return@buildString
                 append("%02d".format(s))
+                if (--i <= 0) return@buildString
+            } else if (h > 0) {
+                append("${h}h ")
+                if (--i <= 0) return@buildString
+                append("%02dm ".format(m))
+                if (--i <= 0) return@buildString
+                append("%02d".format(s))
+                if (--i <= 0) return@buildString
             } else if (m > 0) {
                 append("${m}m ")
+                if (--i <= 0) return@buildString
                 append("%02d".format(s))
+                if (--i <= 0) return@buildString
             } else append(s)
             append("%.${decimals}f".format(ms / 1000.0).substring(1))
             append("s")
-        }
+        }.trim()
     }
 
     fun formatDuration(time: Long): String {
@@ -259,6 +278,44 @@ object StringUtils {
         }
     }
 
+    // uses as few sig figs as possible
+    private val digitChars = Array(10) { '0' + it }
+    private val placePrefix = arrayOf(
+        "",
+        "", "", "",
+        "k", "k", "k",
+        "M", "M", "M",
+        "B",
+    )
+    fun formatShortest(num: Int, maxDigits: Int = 10): String {
+        if (num < 0) return '-' + formatShortest(-num, maxDigits)
+        if (num == 0) return "0"
+
+        val digits = mutableListOf<Int>()
+        var num = num
+        while (num > 0) {
+            digits.add(num % 10)
+            num /= 10
+        }
+        digits.reverse()
+
+        val count = max(
+            ((digits.size - 1) % 3) + 1,
+            min(
+                maxDigits,
+                digits.indexOf(0).let { if (it == -1) digits.size else it }
+            )
+        )
+
+        return buildString {
+            for (i in 0 until count) {
+                if (i == 1 && digits.size > 3) append('.')
+                append(digitChars[digits[i]])
+            }
+            append(placePrefix[digits.size])
+        }
+    }
+
     fun tooltipAsString(tooltip: ClientTooltipComponent): String? {
         val tip = tooltip as? ClientTextTooltipAccessor ?: return null
         val seq = tip.text
@@ -274,4 +331,9 @@ object StringUtils {
     fun String.camelCaseToSentence(): String = camelCaseRegex.replace(this) {
         it.value.replaceFirstChar { it.uppercaseChar() } + " "
     }.trim()
+
+    private val snakeCaseRegex = "_\\w".toRegex()
+    fun String.snakeCaseToSentence(): String = snakeCaseRegex.replace(this) {
+        " " + it.value.last().uppercaseChar()
+    }.replaceFirstChar { it.uppercaseChar() }
 }

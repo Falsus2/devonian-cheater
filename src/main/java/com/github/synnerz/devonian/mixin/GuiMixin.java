@@ -1,5 +1,6 @@
 package com.github.synnerz.devonian.mixin;
 
+import com.github.synnerz.devonian.api.events.PostRenderHotbarSlotEvent;
 import com.github.synnerz.devonian.api.events.RenderHotbarSlotEvent;
 import com.github.synnerz.devonian.api.events.RenderOverlayEvent;
 import com.github.synnerz.devonian.api.events.SelectedItemRenderEvent;
@@ -16,15 +17,18 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.ChatComponent;
 import net.minecraft.client.gui.render.TextureSetup;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.metadata.gui.GuiSpriteScaling;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.numbers.NumberFormat;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.scores.Objective;
 import net.minecraft.world.scores.PlayerScoreEntry;
 import net.minecraft.world.scores.Scoreboard;
 import org.joml.Matrix3x2f;
@@ -37,6 +41,7 @@ import org.spongepowered.asm.mixin.injection.At.Shift;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 
 import java.util.Arrays;
 import java.util.function.IntFunction;
@@ -99,6 +104,10 @@ public class GuiMixin {
         boolean blinking,
         CallbackInfo ci
     ) {
+        if (HideHearts.INSTANCE.isEnabled()) {
+            ci.cancel();
+            return;
+        }
         if (!AccurateAbsorption.INSTANCE.isEnabled()) return;
         AccurateAbsorption.INSTANCE.renderHearts(
             (Gui) (Object) this,
@@ -172,10 +181,11 @@ public class GuiMixin {
                     value = "INVOKE",
                     target = "Lnet/minecraft/client/gui/GuiGraphics;drawStringWithBackdrop(Lnet/minecraft/client/gui/Font;Lnet/minecraft/network/chat/Component;IIII)V"
             ),
+            locals = LocalCapture.CAPTURE_FAILSOFT,
             cancellable = true
     )
-    private void devonian$onRenderSelectedName(GuiGraphics guiGraphics, CallbackInfo ci) {
-        if (new SelectedItemRenderEvent(guiGraphics).post())
+    private void devonian$onRenderSelectedName(GuiGraphics guiGraphics, CallbackInfo ci, MutableComponent mutableComponent, int i, int j, int k, int l) {
+        if (new SelectedItemRenderEvent(guiGraphics, mutableComponent).post())
             ci.cancel();
     }
 
@@ -186,6 +196,18 @@ public class GuiMixin {
     )
     private void devonian$onRenderHotbarSlot(GuiGraphics guiGraphics, int i, int j, DeltaTracker deltaTracker, Player player, ItemStack itemStack, int k, CallbackInfo ci) {
         if (new RenderHotbarSlotEvent(itemStack, i, j, guiGraphics).post()) ci.cancel();
+    }
+
+    @Inject(
+            method = "renderSlot",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/gui/GuiGraphics;renderItemDecorations(Lnet/minecraft/client/gui/Font;Lnet/minecraft/world/item/ItemStack;II)V",
+                    shift = Shift.AFTER
+            )
+    )
+    private void devonian$onPostRenderHotbarSlot(GuiGraphics guiGraphics, int i, int j, DeltaTracker deltaTracker, Player player, ItemStack itemStack, int k, CallbackInfo ci) {
+        new PostRenderHotbarSlotEvent(itemStack, i, j, guiGraphics).post();
     }
 
     @WrapOperation(
@@ -238,6 +260,15 @@ public class GuiMixin {
         original.call(instance, font, component, i, j, k, true);
     }
 
+    @Inject(
+            method = "displayScoreboardSidebar",
+            at = @At("HEAD"),
+            cancellable = true
+    )
+    private void devonian$onScoreboardRender(GuiGraphics guiGraphics, Objective objective, CallbackInfo ci) {
+        if (HideScoreboard.INSTANCE.isEnabled()) ci.cancel();
+    }
+
     @Unique
     private boolean removeHypixel = false;
 
@@ -261,5 +292,61 @@ public class GuiMixin {
             removeHypixel = false;
         }
         return arr;
+    }
+
+    @Inject(
+            method = "renderItemHotbar",
+            at = @At("HEAD"),
+            cancellable = true
+    )
+    private void devonian$onRenderItemHotbar(GuiGraphics guiGraphics, DeltaTracker deltaTracker, CallbackInfo ci) {
+        if (HideHotbar.INSTANCE.isEnabled()) ci.cancel();
+    }
+
+    @Inject(
+            method = "renderHotbarAndDecorations",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/gui/contextualbar/ContextualBarRenderer;renderExperienceLevel(Lnet/minecraft/client/gui/GuiGraphics;Lnet/minecraft/client/gui/Font;I)V"
+            ),
+            cancellable = true
+    )
+    private void devonian$onExperienceLevelRender(GuiGraphics guiGraphics, DeltaTracker deltaTracker, CallbackInfo ci) {
+        if (HideExperience.INSTANCE.isEnabled()) ci.cancel();
+    }
+
+    @Inject(
+            method = "renderHotbarAndDecorations",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/gui/contextualbar/ContextualBarRenderer;renderBackground(Lnet/minecraft/client/gui/GuiGraphics;Lnet/minecraft/client/DeltaTracker;)V"
+            ),
+            cancellable = true
+    )
+    private void devonian$onExperienceBackgroundRender(GuiGraphics guiGraphics, DeltaTracker deltaTracker, CallbackInfo ci) {
+        if (HideExperience.INSTANCE.isEnabled()) ci.cancel();
+    }
+
+    @Inject(
+            method = "renderHotbarAndDecorations",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/gui/contextualbar/ContextualBarRenderer;render(Lnet/minecraft/client/gui/GuiGraphics;Lnet/minecraft/client/DeltaTracker;)V"
+            ),
+            cancellable = true
+    )
+    private void devonian$onExperienceBarRender(GuiGraphics guiGraphics, DeltaTracker deltaTracker, CallbackInfo ci) {
+        if (HideExperience.INSTANCE.isEnabled()) ci.cancel();
+    }
+
+    @WrapOperation(
+            method = "renderChat",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/gui/components/ChatComponent;render(Lnet/minecraft/client/gui/GuiGraphics;IIIZ)V"
+            )
+    )
+    private void devonian$onRenderChat(ChatComponent instance, GuiGraphics guiGraphics, int i, int j, int k, boolean bl, Operation<Void> original) {
+        original.call(instance, guiGraphics, i, j, k, PeekChatKeybind.INSTANCE.isEnabled() ? PeekChatKeybind.INSTANCE.getKeybind().isDown() : bl);
     }
 }

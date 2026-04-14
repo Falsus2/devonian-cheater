@@ -3,17 +3,15 @@ package com.github.synnerz.devonian.api
 import com.github.synnerz.devonian.api.events.*
 import com.github.synnerz.devonian.commands.DevonianCommand
 import com.github.synnerz.devonian.utils.BasicState
-import net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket
-import net.minecraft.network.protocol.game.ClientboundSetPlayerTeamPacket
 
 object Location {
-    val areaRegex = "^(?:Area|Dungeon): ([\\w ]+)\$".toRegex()
+    val areaRegex = "^(?:Area|Dungeon): ([\\w ']+)\$".toRegex()
     val subAreaRegex = "^ ([⏣ф]) ".toRegex()
     var area: String? = null
     var subarea: String? = null
     val stateArea = BasicState<String?>(null)
     val stateSubarea = BasicState<String?>(null)
-    val stateInLatestArea = stateInArea(null, "the park", "galatea")
+    val stateInLatestArea = stateInArea(null, "the park", "galatea", "hub")
     val stateInSkyblock = stateArea.map { it != null }
 
     fun stateInArea(vararg area: String?) = stateArea.map { area.contains(it) }

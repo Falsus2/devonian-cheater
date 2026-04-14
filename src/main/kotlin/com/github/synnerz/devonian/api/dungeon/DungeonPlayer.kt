@@ -12,7 +12,7 @@ import kotlin.math.PI
 
 data class DungeonPlayer(
     val name: String,
-    val profileInfo: PlayerInfo?,
+    var profileInfo: PlayerInfo?,
     var role: DungeonClass,
     var classLevel: Int,
     var isDead: Boolean,
@@ -75,7 +75,7 @@ enum class DungeonClass(
     Healer("Heal", 'h', "&5", Color(170, 0, 170, 255)),
     Tank("Tank", 't', "&a", Color(85, 255, 85, 255)),
 
-    Unknown("Unknown", '\u0000', "", Color(0, 0, 0, 0));
+    Unknown("Unknown", '\u0000', "", Color(0, 0, 0, 255));
 
     private val colorSetting = ConfigData.ColorPicker(
         "dungeonColor$name",
